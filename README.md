@@ -419,7 +419,7 @@ This project is licensed under the MIT License.
 
 For questions or issues, please contact:
 
-- **Email**: support@example.com
+- **Email**: kimanijohn1236@gmail.com
 - **GitHub Issues**: Report bugs and feature requests
 
 ---
