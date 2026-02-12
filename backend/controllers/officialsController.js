@@ -31,22 +31,36 @@ const formatPhotoUrl = (filePath) => {
   return null;
 };
 
+// const getAllOfficials = async (req, res) => {
+//   try {
+//     const result = await pool.query('SELECT * FROM officials ORDER BY category, created_at DESC');
+//     console.log(result);
+    
+//     res.json({
+//       success: true,
+//       data: result.rows
+//     });
+    
+//   } catch (error) {
+//     console.error('Error fetching officials:', error.message);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to fetch officials'
+//     });
+//   }
+// };
 const getAllOfficials = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM officials ORDER BY category, created_at DESC');
-    console.log(result);
-    
-    res.json({
-      success: true,
-      data: result.rows
-    });
-    
+    const query = `
+      SELECT id, name, category, photo, position, created_at 
+      FROM officials 
+      ORDER BY category, position
+    `;
+    const result = await pool.query(query);
+    res.json({ data: result.rows });
   } catch (error) {
-    console.error('Error fetching officials:', error.message);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch officials'
-    });
+    console.error('Error fetching officials:', error);
+    res.status(500).json({ error: 'Failed to fetch officials' });
   }
 };
 

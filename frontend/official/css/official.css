@@ -5,16 +5,13 @@
 
 /* CSS Variables - Church Theme */
 :root {
-    --primary-color: #4a6fa5;
-    --primary-dark: #3d5a80;
-    --secondary-color: #98c1d9;
-    --accent-color: #ee6c4d;
-    --text-dark: #293241;
-    --text-light: #6d7685;
-    --bg-light: #f8f9fa;
-    --bg-cream: #faf8f5;
+    --primary-blue: #2563eb;
+    --primary-dark: #1e40af;
+    --light-blue: #eaf2ff;
+    --text-dark: #1f2933;
+    --text-muted: #6b7280;
+    --gray-bg: #f8fafc;
     --white: #ffffff;
-    --gold: #d4a373;
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -22,6 +19,7 @@
     --radius-md: 12px;
     --radius-lg: 20px;
     --transition: all 0.3s ease;
+    --gold: #d4a373;
 }
 
 /* Reset & Base */
@@ -33,7 +31,7 @@
 
 body {
     font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-    background-color: var(--bg-cream);
+    background-color: var(--gray-bg);
     color: var(--text-dark);
     line-height: 1.6;
 }
@@ -49,7 +47,7 @@ h1, h2, h3, h4, h5, h6 {
    Header Section
    =================================== */
 .header {
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+    background: var(--primary-dark);
     color: var(--white);
     padding: 1.5rem 2rem;
     display: flex;
@@ -102,7 +100,7 @@ h1, h2, h3, h4, h5, h6 {
    Hero/Banner Section
    =================================== */
 .hero {
-    background: linear-gradient(135deg, var(--bg-cream) 0%, var(--white) 100%);
+    background: linear-gradient(135deg, var(--gray-bg) 0%, var(--white) 100%);
     padding: 4rem 2rem;
     text-align: center;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -121,7 +119,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .hero .subtitle {
     font-size: 1.25rem;
-    color: var(--text-light);
+    color: var(--text-muted);
     max-width: 600px;
     margin: 0 auto;
 }
@@ -219,7 +217,7 @@ h1, h2, h3, h4, h5, h6 {
     height: 100%;
     object-fit: cover;
     border-radius: 50%;
-    border: 4px solid var(--secondary-color);
+    border: 4px solid var(--light-blue);
     transition: var(--transition);
 }
 
@@ -232,13 +230,13 @@ h1, h2, h3, h4, h5, h6 {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+    background: linear-gradient(135deg, var(--light-blue), var(--primary-color));
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 3rem;
     color: var(--white);
-    border: 4px solid var(--secondary-color);
+    border: 4px solid var(--light-blue);
 }
 
 .official-name {

@@ -105,7 +105,41 @@ function renderOfficials(officials) {
   // Render each category in order
   CATEGORY_ORDER.forEach((category) => {
     const categoryOfficials = officialsByCategory[category] || [];
-    renderCategorySection(category, categoryOfficials);
+    const sortedOfficials = sortOfficialsByHierarchy(category, categoryOfficials);
+    renderCategorySection(category, sortedOfficials);
+  });
+}
+
+/**
+ * Sort officials by position hierarchy within a category
+ * @param {string} category - Category name
+ * @param {Array} officials - Array of officials to sort
+ * @returns {Array} Sorted officials by hierarchy
+ */
+function sortOfficialsByHierarchy(category, officials) {
+  const POSITION_HIERARCHY = {
+    'Executive': ['Chairperson', 'Vice Chairperson', 'Organizing Secretary', 'Treasurer', 'Secretary', 'Assistant Secretary'],
+    'Jumuia': ['Jumuia Coordinator', 'Assistant Jumuia Coordinator'],
+    'Bible': ['Bible Study Coordinator', 'Assistant Bible Study Coordinator'],
+    'Rosary': ['Rosary Coordinator', 'Assistant Rosary Coordinator'],
+    'Pamphlet': ['Pamphlet Manager', 'Assistant Pamphlet Manager'],
+    'Project': ['Project Manager', 'Assistant Project Manager'],
+    'Liturgist': ['Liturgist', 'Assistant Liturgist'],
+    'Choir': ['Choir Chairperson', 'Choir Vice Chairperson'],
+    'Catechist': ['Catechist']
+  };
+
+  const hierarchy = POSITION_HIERARCHY[category] || [];
+  
+  return [...officials].sort((a, b) => {
+    const posA = a.position || a.category || '';
+    const posB = b.position || b.category || '';
+    const indexA = hierarchy.indexOf(posA);
+    const indexB = hierarchy.indexOf(posB);
+    
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
   });
 }
 
@@ -185,6 +219,64 @@ function renderCategorySection(category, officials) {
   officialsContainer.appendChild(section);
 }
 
+// /**
+//  * Create an official card element
+//  * @param {Object} official - Official object
+//  * @returns {HTMLElement} Official card element
+//  */
+// function createOfficialCard(official) {
+//   console.log(official);
+
+//   const card = document.createElement("article");
+//   card.className = "official-card";
+//   card.setAttribute("role", "listitem");
+
+//   // Get photo URL or use placeholder
+//   const photoUrl = official.photo || PLACEHOLDER_IMAGE;
+  
+
+//   // Create photo container
+//   const photoContainer = document.createElement("div");
+//   photoContainer.className = "official-photo-container";
+
+//   // Check if official has a valid photo
+//   if (official.photo) {
+//     const img = document.createElement("img");
+//     img.className = "official-photo";
+//     img.src =`${API_UPLOAD_URL}/${photoUrl}`;
+//     img.alt = `${official.name}'s photo`;
+//     img.onerror = handleImageError;
+//     photoContainer.appendChild(img);
+//   } else {
+//     // Use placeholder
+//     const placeholder = document.createElement("div");
+//     placeholder.className = "official-photo-placeholder";
+//     placeholder.textContent = "👤";
+//     placeholder.setAttribute(
+//       "aria-label",
+//       `Photo placeholder for ${official.name}`,
+//     );
+//     photoContainer.appendChild(placeholder);
+//   }
+
+//   // Create name element
+//   const name = document.createElement("h4");
+//   name.className = "official-name";
+//   name.textContent = official.name;
+
+//   // Create category badge
+//   const category = document.createElement("span");
+//   category.className = "official-category";
+//   category.textContent = official.category || "Member";
+
+//   // Assemble card
+//   card.appendChild(photoContainer);
+//   card.appendChild(name);
+//   card.appendChild(category);
+
+//   return card;
+// }
+
 /**
  * Create an official card element
  * @param {Object} official - Official object
@@ -197,10 +289,6 @@ function createOfficialCard(official) {
   card.className = "official-card";
   card.setAttribute("role", "listitem");
 
-  // Get photo URL or use placeholder
-  const photoUrl = official.photo || PLACEHOLDER_IMAGE;
-  
-
   // Create photo container
   const photoContainer = document.createElement("div");
   photoContainer.className = "official-photo-container";
@@ -209,20 +297,22 @@ function createOfficialCard(official) {
   if (official.photo) {
     const img = document.createElement("img");
     img.className = "official-photo";
-    img.src =`${API_UPLOAD_URL}/${photoUrl}`;
+    // Build photo URL - handle both absolute and relative paths
+    const photoPath = official.photo.startsWith('/') 
+      ? official.photo 
+      : '/' + official.photo;
+    img.src = `${API_UPLOAD_URL}${photoPath}`;
     img.alt = `${official.name}'s photo`;
     img.onerror = handleImageError;
     photoContainer.appendChild(img);
   } else {
     // Use placeholder
-    const placeholder = document.createElement("div");
-    placeholder.className = "official-photo-placeholder";
-    placeholder.textContent = "👤";
-    placeholder.setAttribute(
-      "aria-label",
-      `Photo placeholder for ${official.name}`,
-    );
-    photoContainer.appendChild(placeholder);
+    const img = document.createElement("img");
+    img.className = "official-photo";
+    img.src = PLACEHOLDER_IMAGE;
+    img.alt = `${official.name}'s photo (placeholder)`;
+    img.onerror = handleImageError;
+    photoContainer.appendChild(img);
   }
 
   // Create name element
@@ -230,15 +320,15 @@ function createOfficialCard(official) {
   name.className = "official-name";
   name.textContent = official.name;
 
-  // Create category badge
-  const category = document.createElement("span");
-  category.className = "official-category";
-  category.textContent = official.category || "Member";
+  // Create position badge (changed from category)
+  const position = document.createElement("span");
+  position.className = "official-position";
+  position.textContent = official.position || official.category || "Member";
 
   // Assemble card
   card.appendChild(photoContainer);
   card.appendChild(name);
-  card.appendChild(category);
+  card.appendChild(position);
 
   return card;
 }

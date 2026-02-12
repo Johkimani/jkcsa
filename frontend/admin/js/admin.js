@@ -1,7 +1,53 @@
-// API Configuration
+// ============ NEW: POSITION MAPPING BY CATEGORY ============
+/**
+ * Maps each category to its available positions
+ * Used to populate position dropdown based on selected category
+ */
+const POSITION_BY_CATEGORY = {
+    'Executive': [
+        'Chairperson',
+        'Vice Chairperson',
+        'Organizing Secretary',
+        'Treasurer',
+        'Secretary',
+        'Assistant Secretary'
+    ],
+    'Jumuia': [
+        'Jumuia Coordinator',
+        'Assistant Jumuia Coordinator'
+    ],
+    'Bible': [
+        'Bible Study Coordinator',
+        'Assistant Bible Study Coordinator'
+    ],
+    'Rosary': [
+        'Rosary Coordinator',
+        'Assistant Rosary Coordinator'
+    ],
+    'Pamphlet': [
+        'Pamphlet Manager',
+        'Assistant Pamphlet Manager'
+    ],
+    'Project': [
+        'Project Manager',
+        'Assistant Project Manager'
+    ],
+    'Liturgist': [
+        'Liturgist',
+        'Assistant Liturgist'
+    ],
+    'Choir': [
+        'Choir Chairperson',
+        'Choir Vise Chairperson'
+    ],
+    'Catechist': [
+        'Catechist'
+    ]
+};
+
+// ============ EXISTING CODE ============
 const API_BASE_URL = 'http://localhost:3000/api/officials';
 
-// Category Limits
 const CATEGORY_LIMITS = {
     'Executive': 6,
     'Jumuia': 2,
@@ -14,15 +60,16 @@ const CATEGORY_LIMITS = {
     'Catechist': 1
 };
 
-// DOM Elements
+// ============ UPDATED: DOM ELEMENTS WITH POSITION FIELDS ============
 const elements = {
     // Stats
     statsGrid: document.getElementById('statsGrid'),
     
-    // Add Form
+    // Add Form - UPDATED with position field
     addOfficialForm: document.getElementById('addOfficialForm'),
     officialName: document.getElementById('officialName'),
     officialCategory: document.getElementById('officialCategory'),
+    officialPosition: document.getElementById('officialPosition'),  // NEW
     officialPhoto: document.getElementById('officialPhoto'),
     addSubmitBtn: document.getElementById('addSubmitBtn'),
     addMessageArea: document.getElementById('addMessageArea'),
@@ -34,12 +81,13 @@ const elements = {
     emptyState: document.getElementById('emptyState'),
     loadingIndicator: document.getElementById('loadingIndicator'),
     
-    // Edit Modal
+    // Edit Modal - UPDATED with position field
     editModal: document.getElementById('editModal'),
     editOfficialForm: document.getElementById('editOfficialForm'),
     editOfficialId: document.getElementById('editOfficialId'),
     editName: document.getElementById('editName'),
     editCategory: document.getElementById('editCategory'),
+    editPosition: document.getElementById('editPosition'),  // NEW
     editPhoto: document.getElementById('editPhoto'),
     currentPhoto: document.getElementById('currentPhoto'),
     currentPhotoPreview: document.getElementById('currentPhotoPreview'),
@@ -55,8 +103,59 @@ const elements = {
 // State
 let currentOfficials = [];
 let officialsToDelete = null;
+let searchTimeout; // For debouncing search
 
-// Utility Functions
+// ============ DEBOUNCE FUNCTION ============
+/**
+ * Creates a debounced version of a function
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Wait time in milliseconds
+ * @returns {Function} Debounced function
+ */
+function debounce(func, wait = 300) {
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(searchTimeout);
+            func(...args);
+        };
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(later, wait);
+    };
+}
+
+// ============ NEW: POPULATE POSITION DROPDOWN FUNCTION ============
+/**
+ * Populates position dropdown based on selected category
+ * Called when category selection changes
+ * @param {string} category - The selected category
+ * @param {HTMLElement} positionSelect - The position select element to populate
+ */
+function populatePositions(category, positionSelect) {
+    // Clear existing positions
+    positionSelect.innerHTML = '<option value="">Select a position</option>';
+    
+    // Check if category has defined positions
+    if (POSITION_BY_CATEGORY[category]) {
+        // Get positions for this category
+        const positions = POSITION_BY_CATEGORY[category];
+        
+        // Add each position as an option
+        positions.forEach(position => {
+            const option = document.createElement('option');
+            option.value = position;
+            option.textContent = position;
+            positionSelect.appendChild(option);
+        });
+        
+        // Enable the position select
+        positionSelect.disabled = false;
+    } else {
+        // Disable if no positions defined
+        positionSelect.disabled = true;
+    }
+}
+
+// ============ EXISTING UTILITY FUNCTIONS ============
 function showMessage(messageArea, message, type) {
     messageArea.textContent = message;
     messageArea.className = `message-area active message-${type}`;
@@ -67,14 +166,30 @@ function showMessage(messageArea, message, type) {
 }
 
 function formatDate(dateString) {
-    const options = { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+    if (!dateString) return 'N/A';
+    
+    try {
+        // Handle both ISO format and timestamp
+        const date = new Date(dateString);
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return 'N/A';
+        }
+        
+        const options = { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        };
+        return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+        console.error('Error formatting date:', error, dateString);
+        return 'N/A';
+    }
 }
 
 function getCategoryStatus(count, limit) {
@@ -95,17 +210,18 @@ function setLoading(button, isLoading, originalText) {
     }
 }
 
-// Stats Functions
+// ============ STATS FUNCTIONS (UPDATED) ============
 function fetchStats() {
     const categoryCounts = {};
     
-    // Initialize all categories with 0
     Object.keys(CATEGORY_LIMITS).forEach(category => {
         categoryCounts[category] = 0;
     });
     
-    // Count officials by category
-    currentOfficials.forEach(official => {
+    // Handle both response object with .data property and direct array
+    const officialsArray = Array.isArray(currentOfficials) ? currentOfficials : (currentOfficials.data || []);
+    
+    officialsArray.forEach(official => {
         if (categoryCounts.hasOwnProperty(official.category)) {
             categoryCounts[official.category]++;
         }
@@ -134,7 +250,7 @@ function renderStatsCards(categoryCounts) {
     });
 }
 
-// Table Functions
+// ============ TABLE FUNCTIONS (UPDATED TO SHOW POSITION) ============
 function renderTable(officials) {
     elements.officialsTableBody.innerHTML = '';
     
@@ -151,29 +267,34 @@ function renderTable(officials) {
         const row = document.createElement('tr');
         console.log(official.photo);
         
-        
         const photoUrl = official.photo 
             ? `http://localhost:3000/${official.photo}`
             : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect fill="%23e2e8f0" width="48" height="48"/><text fill="%2394a3b8" x="50%" y="50%" text-anchor="middle" dy="0.35em" font-size="20">👤</text></svg>';
         
-            console.log(photoUrl);
-            
+        console.log(photoUrl);
+        
+        // NEW: Display position instead of just category
+        const displayPosition = official.position || official.category;
+        
         row.innerHTML = `
-            <td>
+            <td data-label="Photo">
                 <img src="${photoUrl}" alt="${official.name}" class="photo-thumbnail">
             </td>
-            <td>
+            <td data-label="Name">
                 <span class="official-name">${official.name}</span>
             </td>
-            <td>
+            <td data-label="Category">
                 <span class="category-badge ${official.category.toLowerCase()}">${official.category}</span>
             </td>
-            <td>
-                <span class="date-text">${formatDate(official.createdAt)}</span>
+            <td data-label="Position">
+                <span class="position-text">${displayPosition}</span>
             </td>
-            <td>
+            <td data-label="Date Added">
+                <span class="date-text">${formatDate(official.created_at)}</span>
+            </td>
+            <td data-label="Actions">
                 <div class="action-buttons">
-                    <button class="btn-icon btn-edit" onclick="openEditModal(${JSON.stringify(official).replace(/"/g, '"')})" title="Edit">
+                    <button class="btn-icon btn-edit" data-official='${JSON.stringify(official)}' onclick="openEditModalFromButton(this)" title="Edit">
                         ✏️
                     </button>
                     <button class="btn-icon btn-delete" onclick="handleDelete(${official.id}, '${official.name.replace(/'/g, "\\'")}')" title="Delete">
@@ -191,16 +312,19 @@ function filterOfficials() {
     const searchTerm = elements.searchInput.value.toLowerCase();
     const filterCategory = elements.filterCategory.value;
     
-    const filtered = currentOfficials.filter(official => {
+    // Handle both response object with .data property and direct array
+    const officialsArray = Array.isArray(currentOfficials) ? currentOfficials : (currentOfficials.data || []);
+    
+    const filtered = officialsArray.filter(official => {
         const matchesSearch = official.name.toLowerCase().includes(searchTerm);
         const matchesCategory = !filterCategory || official.category === filterCategory;
         return matchesSearch && matchesCategory;
     });
     
-    renderTable(filtered);
+    renderTable({ data: filtered });
 }
 
-// API Functions
+// ============ API FUNCTIONS (UPDATED) ============
 async function fetchOfficials() {
     elements.loadingIndicator.classList.add('active');
     elements.officialsTableBody.closest('table').style.display = 'none';
@@ -213,8 +337,9 @@ async function fetchOfficials() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        let currentOfficials = await response.json();
-        console.log();
+        // Update the global currentOfficials variable (not a local one)
+        currentOfficials = await response.json();
+        console.log(currentOfficials);
         
         renderTable(currentOfficials);
         fetchStats();
@@ -231,15 +356,22 @@ async function fetchOfficials() {
     }
 }
 
+// ============ UPDATED: HANDLE ADD WITH POSITION ============
+/**
+ * Handle adding a new official
+ * Now includes position in the submission
+ */
 async function handleAdd(event) {
     event.preventDefault();
     
+    // Get form values including NEW position field
     const name = elements.officialName.value.trim();
     const category = elements.officialCategory.value;
+    const position = elements.officialPosition.value;  // NEW
     const photo = elements.officialPhoto.files[0];
     
-    // Validation
-    if (!name || !category || !photo) {
+    // Validation - UPDATED to include position
+    if (!name || !category || !position || !photo) {
         showMessage(elements.addMessageArea, 'Please fill in all required fields.', 'error');
         return;
     }
@@ -251,15 +383,18 @@ async function handleAdd(event) {
     }
     
     // Check category limit before sending request
-    const categoryCount = currentOfficials.filter(o => o.category === category).length;
+    const officialsArray = Array.isArray(currentOfficials) ? currentOfficials : (currentOfficials.data || []);
+    const categoryCount = officialsArray.filter(o => o.category === category).length;
     if (categoryCount >= CATEGORY_LIMITS[category]) {
         showMessage(elements.addMessageArea, `Cannot add official. ${category} category is full (${categoryCount}/${CATEGORY_LIMITS[category]}).`, 'error');
         return;
     }
     
+    // Create FormData - UPDATED to include position
     const formData = new FormData();
     formData.append('name', name);
     formData.append('category', category);
+    formData.append('position', position);  // NEW
     formData.append('photo', photo);
     
     setLoading(elements.addSubmitBtn, true, 'Add Official');
@@ -278,6 +413,11 @@ async function handleAdd(event) {
         
         showMessage(elements.addMessageArea, 'Official added successfully!', 'success');
         elements.addOfficialForm.reset();
+        
+        // Reset position dropdown
+        elements.officialPosition.innerHTML = '<option value="">Select category first</option>';
+        elements.officialPosition.disabled = true;
+        
         await fetchOfficials();
     } catch (error) {
         console.error('Error adding official:', error);
@@ -287,6 +427,7 @@ async function handleAdd(event) {
     }
 }
 
+// ============ DELETE FUNCTIONS (UNCHANGED) ============
 async function handleDelete(id, name) {
     officialsToDelete = { id, name };
     elements.deleteMessage.textContent = `Are you sure you want to delete ${name}?`;
@@ -323,14 +464,35 @@ async function confirmDelete() {
     }
 }
 
-function openEditModal(official) {
+// ============ UPDATED: OPEN EDIT MODAL WITH POSITION ============
+/**
+ * Wrapper function to open edit modal from button click
+ * Retrieves official data from data attribute
+ */
+function openEditModalFromButton(button) {
+    const officialJson = button.getAttribute('data-official');
+    openEditModal(officialJson);
+}
+
+/**
+ * Open the edit modal and populate it with official data
+ * Now also populates position dropdown based on category
+ */
+function openEditModal(officialJson) {
+    // Handle both string and object inputs
+    const official = typeof officialJson === 'string' ? JSON.parse(officialJson) : officialJson;
+    
     elements.editOfficialId.value = official.id;
     elements.editName.value = official.name;
     elements.editCategory.value = official.category;
+    elements.editPosition.value = official.position || '';  // NEW
+    
+    // NEW: Populate position dropdown for the selected category
+    populatePositions(official.category, elements.editPosition);
     
     // Show current photo
     if (official.photo) {
-        elements.currentPhoto.src = `http://localhost:3000/uploads/${official.photo}`;
+        elements.currentPhoto.src = `http://localhost:3000/${official.photo}`;
         elements.currentPhoto.style.display = 'block';
         elements.currentPhotoPreview.style.display = 'block';
     } else {
@@ -342,16 +504,23 @@ function openEditModal(official) {
     elements.editModal.classList.add('active');
 }
 
+// ============ UPDATED: HANDLE EDIT WITH POSITION ============
+/**
+ * Handle editing an official
+ * Now includes position in the submission
+ */
 async function handleEdit(event) {
     event.preventDefault();
     
+    // Get form values including NEW position field
     const id = elements.editOfficialId.value;
     const name = elements.editName.value.trim();
     const category = elements.editCategory.value;
+    const position = elements.editPosition.value;  // NEW
     const photo = elements.editPhoto.files[0];
     
-    // Validation
-    if (!name || !category) {
+    // Validation - UPDATED to include position
+    if (!name || !category || !position) {
         showMessage(elements.editMessageArea, 'Please fill in all required fields.', 'error');
         return;
     }
@@ -362,9 +531,11 @@ async function handleEdit(event) {
         return;
     }
     
+    // Create FormData - UPDATED to include position
     const formData = new FormData();
     formData.append('name', name);
     formData.append('category', category);
+    formData.append('position', position);  // NEW
     if (photo) {
         formData.append('photo', photo);
     }
@@ -400,7 +571,11 @@ function closeModals() {
     officialsToDelete = null;
 }
 
-// Event Listeners
+// ============ UPDATED: EVENT LISTENERS WITH POSITION HANDLERS ============
+/**
+ * Setup all event listeners for the admin dashboard
+ * UPDATED to include category change handlers for position dropdown
+ */
 function setupEventListeners() {
     // Add form submission
     elements.addOfficialForm.addEventListener('submit', handleAdd);
@@ -411,9 +586,22 @@ function setupEventListeners() {
     // Delete confirmation
     elements.confirmDeleteBtn.addEventListener('click', confirmDelete);
     
-    // Search and filter
-    elements.searchInput.addEventListener('input', filterOfficials);
+    // Search and filter with debouncing
+    const debouncedFilter = debounce(filterOfficials, 300);
+    elements.searchInput.addEventListener('input', debouncedFilter);
     elements.filterCategory.addEventListener('change', filterOfficials);
+    
+    // NEW: Category change handler for Add form - populate positions
+    elements.officialCategory.addEventListener('change', (e) => {
+        const selectedCategory = e.target.value;
+        populatePositions(selectedCategory, elements.officialPosition);
+    });
+    
+    // NEW: Category change handler for Edit modal - populate positions
+    elements.editCategory.addEventListener('change', (e) => {
+        const selectedCategory = e.target.value;
+        populatePositions(selectedCategory, elements.editPosition);
+    });
     
     // Modal close buttons
     document.querySelectorAll('.modal-close, [data-modal]').forEach(button => {
@@ -458,7 +646,7 @@ function setupEventListeners() {
     });
 }
 
-// Initialize
+// ============ INITIALIZE ============
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     fetchOfficials();
