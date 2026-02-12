@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Officials Management - Admin Dashboard</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header Section -->
+        <header class="admin-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">Officials Management - Admin</h1>
+                <nav class="header-nav">
+                    <a href="../official/index.html" class="nav-link">Official Page</a>
+                    <div class="admin-brand">
+                        <span class="admin-avatar">A</span>
+                        <span class="admin-name">Admin</span>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Stats Cards Section -->
+            <section class="stats-section">
+                <h2 class="section-title">Category Overview</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats cards will be dynamically generated -->
+                </div>
+            </section>
+
+            <!-- Add Official Form Section -->
+            <section class="form-section">
+                <h2 class="section-title">Add New Official</h2>
+                <form id="addOfficialForm" class="admin-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="officialName">Full Name *</label>
+                            <input type="text" id="officialName" name="name" required placeholder="Enter official's full name">
+                        </div>
+                        <div class="form-group">
+                            <label for="officialCategory">Category *</label>
+                            <select id="officialCategory" name="category" required>
+                                <option value="">Select Category</option>
+                                <option value="Executive">Executive</option>
+                                <option value="Jumuia">Jumuia</option>
+                                <option value="Bible">Bible</option>
+                                <option value="Rosary">Rosary</option>
+                                <option value="Pamphlet">Pamphlet</option>
+                                <option value="Project">Project</option>
+                                <option value="Liturgist">Liturgist</option>
+                                <option value="Choir">Choir</option>
+                                <option value="Catechist">Catechist</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="officialPhoto">Photo *</label>
+                        <input type="file" id="officialPhoto" name="photo" accept="image/*" required>
+                        <small class="form-hint">Accepted formats: JPG, PNG, GIF (Max size: 5MB)</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="addSubmitBtn">Add Official</button>
+                </form>
+                <div id="addMessageArea" class="message-area"></div>
+            </section>
+
+            <!-- Officials Table Section -->
+            <section class="table-section">
+                <div class="table-header">
+                    <h2 class="section-title">Manage Officials</h2>
+                    <div class="search-filter">
+                        <input type="text" id="searchInput" placeholder="Search officials..." class="search-input">
+                        <select id="filterCategory" class="filter-select">
+                            <option value="">All Categories</option>
+                            <option value="Executive">Executive</option>
+                            <option value="Jumuia">Jumuia</option>
+                            <option value="Bible">Bible</option>
+                            <option value="Rosary">Rosary</option>
+                            <option value="Pamphlet">Pamphlet</option>
+                            <option value="Project">Project</option>
+                            <option value="Liturgist">Liturgist</option>
+                            <option value="Choir">Choir</option>
+                            <option value="Catechist">Catechist</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="officials-table">
+                        <thead>
+                            <tr>
+                                <th>Photo</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="officialsTableBody">
+                            <!-- Table rows will be dynamically generated -->
+                        </tbody>
+                    </table>
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                        <div class="empty-icon">📋</div>
+                        <p>No officials found. Add your first official above.</p>
+                    </div>
+                    <div id="loadingIndicator" class="loading-indicator">
+                        <div class="spinner"></div>
+                        <p>Loading officials...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Official</h3>
+                <button class="modal-close" data-modal="editModal">&times;</button>
+            </div>
+            <form id="editOfficialForm" class="admin-form">
+                <input type="hidden" id="editOfficialId" name="id">
+                <div class="form-group">
+                    <label for="editName">Full Name *</label>
+                    <input type="text" id="editName" name="name" required placeholder="Enter official's full name">
+                </div>
+                <div class="form-group">
+                    <label for="editCategory">Category *</label>
+                    <select id="editCategory" name="category" required>
+                        <option value="">Select Category</option>
+                        <option value="Executive">Executive</option>
+                        <option value="Jumuia">Jumuia</option>
+                        <option value="Bible">Bible</option>
+                        <option value="Rosary">Rosary</option>
+                        <option value="Pamphlet">Pamphlet</option>
+                        <option value="Project">Project</option>
+                        <option value="Liturgist">Liturgist</option>
+                        <option value="Choir">Choir</option>
+                        <option value="Catechist">Catechist</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editPhoto">Photo (optional - leave empty to keep current)</label>
+                    <input type="file" id="editPhoto" name="photo" accept="image/*">
+                    <small class="form-hint">Accepted formats: JPG, PNG, GIF (Max size: 5MB)</small>
+                    <div id="currentPhotoPreview" class="photo-preview">
+                        <p>Current Photo:</p>
+                        <img id="currentPhoto" src="" alt="Current photo" style="display: none;">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="editModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="editSubmitBtn">Save Changes</button>
+                </div>
+            </form>
+            <div id="editMessageArea" class="message-area"></div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Confirm Deletion</h3>
+                <button class="modal-close" data-modal="deleteModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="warning-icon">⚠️</div>
+                <p id="deleteMessage">Are you sure you want to delete this official?</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-modal="deleteModal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

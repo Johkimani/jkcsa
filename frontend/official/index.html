@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Meet our church officials and ministry leaders. Learn about the dedicated team serving our congregation.">
+    <title>Our Officials</title>
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="css/official.css">
+    
+    <!-- Favicon (placeholder) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛪</text></svg>">
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="header" role="banner">
+        <div class="header-brand">
+            <div class="logo" aria-hidden="true">⛪</div>
+            <h1>CSA FAMILLY OFFICIALS</h1>
+        </div>
+        
+    </header>
+
+    <!-- Hero/Banner Section -->
+    <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-content">
+            <h2 id="hero-title">Our Officials</h2>
+            <div class="divider" aria-hidden="true"></div>
+            <p class="subtitle">
+                Meet the dedicated team of volunteers and leaders who serve our congregation 
+                with faith, commitment, and love. Each member plays a vital role in our 
+                ministry's mission and vision.
+            </p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="main-content" role="main">
+        <!-- Loading State -->
+        <div id="loading-container" class="loading-container" aria-live="polite">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <p class="loading-text">Loading officials...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-container" class="error-container" style="display: none;" aria-live="alert">
+            <div class="error-icon" aria-hidden="true">⚠️</div>
+            <p class="error-message" id="error-message">Unable to load officials</p>
+            <p class="error-details" id="error-details">Please try again later.</p>
+        </div>
+
+        <!-- Officials Container (populated by JavaScript) -->
+        <div id="officials-container" aria-label="Church Officials"></div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="footer" role="contentinfo">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>CSA COMMUNITY</h4>
+                <p>Serving our community with faith and love since 1950.</p>
+                <p>📍 123 Church Street, KUTUS, Kirinyaga</p>
+            </div>
+            <div class="footer-section">
+                <h4>Service Times</h4>
+                <p>Sunday Mass: 7:00 AM & 09:00 AM</p>
+                <p>Weekday Mass: 6:30 AM</p>
+                <p>Every Friday: 7:00 PM</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <p><a href="#">Contact Us</a></p>
+                <p><a href="#">Privacy Policy</a></p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 CSA FAMILLY. All rights reserved.</p>
+            <p>Officials Management System</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/official.js"></script>
+</body>
+</html>
