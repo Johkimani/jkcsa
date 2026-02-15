@@ -16,6 +16,13 @@ const CATEGORY_LIMITS = {
 
 const VALID_CATEGORIES = Object.keys(CATEGORY_LIMITS);
 
+// Helper function to validate phone number
+const isValidPhone = (phone) => {
+  if (!phone) return true; // Optional field
+  const phoneRegex = /^[+]?[(]?[0-9]{1,3}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/;
+  return phoneRegex.test(phone.trim());
+};
+
 // Helper function to delete file
 const deleteFile = (filePath) => {
   if (filePath && fs.existsSync(filePath)) {
@@ -52,7 +59,7 @@ const formatPhotoUrl = (filePath) => {
 const getAllOfficials = async (req, res) => {
   try {
     const query = `
-      SELECT id, name, category, photo, position, created_at 
+      SELECT id, name, category, photo, position, contact, created_at 
       FROM officials 
       ORDER BY category, position
     `;
@@ -91,13 +98,21 @@ const getOfficialById = async (req, res) => {
 
 const createOfficial = async (req, res) => {
   try {
-    const { name, category, position } = req.body;
+    const { name, category, position, contact } = req.body;
 
     // Validate required fields
     if (!name || !category) {
       return res.status(400).json({
         success: false,
         message: 'Name and category are required'
+      });
+    }
+
+    // Validate phone if provided
+    if (contact && !isValidPhone(contact)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number'
       });
     }
 
@@ -131,10 +146,10 @@ const createOfficial = async (req, res) => {
 
     // Insert into database
     const result = await pool.query(
-      `INSERT INTO officials (name, category, position, photo) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO officials (name, category, position, contact, photo) 
+       VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
-      [name, category, position || null, photoUrl]
+      [name, category, position || null, contact || null, photoUrl]
     );
 
     res.status(201).json({
@@ -153,7 +168,7 @@ const createOfficial = async (req, res) => {
 const updateOfficial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, position } = req.body;
+    const { name, category, position, contact } = req.body;
 
     // Check if official exists
     const existingResult = await pool.query('SELECT * FROM officials WHERE id = $1', [id]);
@@ -171,6 +186,14 @@ const updateOfficial = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}`
+      });
+    }
+
+    // Validate phone if provided
+    if (contact && !isValidPhone(contact)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number'
       });
     }
 
@@ -207,11 +230,12 @@ const updateOfficial = async (req, res) => {
        SET name = COALESCE($1, name), 
            category = COALESCE($2, category), 
            position = COALESCE($3, position), 
-           photo = COALESCE($4, photo),
+           contact = COALESCE($4, contact),
+           photo = COALESCE($5, photo),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
+       WHERE id = $6
        RETURNING *`,
-      [name, category, position, photoUrl, id]
+      [name, category, position, contact || null, photoUrl, id]
     );
 
     res.json({

@@ -1,28 +1,3 @@
--- -- Officials Management System Database Schema
--- -- Run this SQL in PostgreSQL to create the required table
-
--- CREATE TABLE IF NOT EXISTS officials (
---     id SERIAL PRIMARY KEY,
---     name VARCHAR(255) NOT NULL,
---     category VARCHAR(50) NOT NULL,
---     position VARCHAR(100),
---     photo TEXT,
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
--- );
-
--- -- Create index for faster category queries
--- CREATE INDEX IF NOT EXISTS idx_officials_category ON officials(category);
-
--- -- Create index for sorting by category and created_at
--- CREATE INDEX IF NOT EXISTS idx_officials_category_created ON officials(category, created_at DESC);
-
--- -- Insert sample data (optional)
--- -- INSERT INTO officials (name, category, position) VALUES 
--- -- ('John Doe', 'Executive', 'Chairman'),
--- -- ('Jane Smith', 'Executive', 'Secretary');
-
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 
@@ -31,6 +6,7 @@ CREATE TABLE IF NOT EXISTS officials (
     name VARCHAR(255) NOT NULL,
     category VARCHAR(50) NOT NULL,
     position VARCHAR(100),
+    contact VARCHAR(100),
     photo TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -104,6 +104,22 @@
                         <small class="form-hint">Position options will appear after selecting a category</small>
                     </div>
 
+                    <!-- Phone Input -->
+                    <div class="form-group">
+                        <label for="officialContact">
+                            <span class="label-icon">📞</span> Phone Number
+                        </label>
+                        <input 
+                            type="tel" 
+                            id="officialContact" 
+                            name="contact" 
+                            placeholder="+254 700 000000"
+                            autocomplete="tel"
+                            pattern="[+]?[0-9\s\-\(\)]{7,}"
+                        >
+                        <small class="form-hint">Enter phone number (optional) • Format: +254 700 000000</small>
+                    </div>
+
                     <!-- Photo Upload -->
                     <div class="form-group">
                         <label for="officialPhoto">Photo <span class="required">*</span></label>
@@ -198,7 +214,8 @@
                                 <th class="col-photo">Photo</th>
                                 <th class="col-name">Name</th>
                                 <th class="col-category">Category</th>
-                                <th class="col-position">Position</th>  <!-- NEW COLUMN -->
+                                <th class="col-position">Position</th>
+                                <th class="col-contact">📞 Contact</th>
                                 <th class="col-date">Date Added</th>
                                 <th class="col-actions">Actions</th>
                             </tr>
@@ -311,6 +328,22 @@
                         accept="image/*"
                     >
                     <small class="form-hint">Leave empty to keep the current photo</small>
+                </div>
+
+                <!-- Phone Input -->
+                <div class="form-group">
+                    <label for="editContact">
+                        <span class="label-icon">📞</span> Phone Number
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="editContact" 
+                        name="contact" 
+                        placeholder="+254 700 000000"
+                        autocomplete="tel"
+                        pattern="[+]?[0-9\s\-\(\)]{7,}"
+                    >
+                    <small class="form-hint">Enter phone number (optional) • Format: +254 700 000000</small>
                 </div>
 
                 <!-- Modal Actions -->

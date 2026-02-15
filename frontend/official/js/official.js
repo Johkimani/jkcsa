@@ -325,10 +325,23 @@ function createOfficialCard(official) {
   position.className = "official-position";
   position.textContent = official.position || official.category || "Member";
 
+  // Create contact element (phone only)
+  const phone = official.contact || '';
+  let contactEl = null;
+  if (phone) {
+    contactEl = document.createElement('p');
+    contactEl.className = 'official-contact';
+    const a = document.createElement('a');
+    a.href = `tel:${phone.replace(/[^+0-9]/g, '')}`;
+    a.textContent = phone;
+    contactEl.appendChild(a);
+  }
+
   // Assemble card
   card.appendChild(photoContainer);
   card.appendChild(name);
   card.appendChild(position);
+  if (contactEl) card.appendChild(contactEl);
 
   return card;
 }

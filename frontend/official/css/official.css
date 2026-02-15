@@ -200,6 +200,22 @@ h1, h2, h3, h4, h5, h6 {
     padding: 2rem 1.5rem;
 }
 
+    .official-contact {
+        margin-top: 0.5rem;
+        font-size: 0.95rem;
+        color: var(--text-muted);
+    }
+
+    .official-contact a {
+        color: var(--primary-blue);
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .official-contact a:hover {
+        text-decoration: underline;
+    }
+
 .official-card:hover {
     transform: translateY(-8px);
     box-shadow: var(--shadow-lg);

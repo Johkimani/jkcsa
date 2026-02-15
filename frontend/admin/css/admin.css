@@ -281,10 +281,18 @@ body {
     font-weight: 500;
     color: var(--text-primary);
     font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.label-icon {
+    font-size: 1.2rem;
 }
 
 .form-group input[type="text"],
 .form-group input[type="email"],
+.form-group input[type="tel"],
 .form-group select {
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-color);
@@ -292,6 +300,11 @@ body {
     font-size: 1rem;
     transition: var(--transition);
     background: var(--card-bg);
+}
+
+.form-group input[type="tel"] {
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
 }
 
 .form-group input:focus,
@@ -311,6 +324,22 @@ body {
 .form-hint {
     font-size: 0.75rem;
     color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Contact field specific styling */
+.form-group input[type="tel"]::placeholder {
+    color: #cbd5e1;
+}
+
+.form-group input[type="tel"]:valid {
+    border-color: var(--success-color);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.form-group input[type="tel"]:invalid:not(:placeholder-shown) {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
 }
 
 /* Button Styles */
@@ -468,6 +497,18 @@ body {
     font-weight: 600;
     background: var(--bg-color);
     color: var(--text-secondary);
+}
+
+.position-text {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.contact-text {
+    font-family: 'Courier New', monospace;
+    color: var(--primary-color);
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .category-badge.executive { background: #dbeafe; color: #1d4ed8; }

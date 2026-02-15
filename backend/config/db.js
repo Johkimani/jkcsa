@@ -9,10 +9,10 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'KingPine1236!',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 55000,
-  // ssl: {
-  //   rejectUnauthorized:false
-  // }
+  connectionTimeoutMillis: 60000,
+  ssl: {
+    rejectUnauthorized:false
+  }
 });
 
 pool.on('connect', () => {

@@ -70,6 +70,7 @@ const elements = {
     officialName: document.getElementById('officialName'),
     officialCategory: document.getElementById('officialCategory'),
     officialPosition: document.getElementById('officialPosition'),  // NEW
+    officialContact: document.getElementById('officialContact'),  // NEW
     officialPhoto: document.getElementById('officialPhoto'),
     addSubmitBtn: document.getElementById('addSubmitBtn'),
     addMessageArea: document.getElementById('addMessageArea'),
@@ -88,6 +89,7 @@ const elements = {
     editName: document.getElementById('editName'),
     editCategory: document.getElementById('editCategory'),
     editPosition: document.getElementById('editPosition'),  // NEW
+    editContact: document.getElementById('editContact'),  // NEW (may be null if HTML not updated)
     editPhoto: document.getElementById('editPhoto'),
     currentPhoto: document.getElementById('currentPhoto'),
     currentPhotoPreview: document.getElementById('currentPhotoPreview'),
@@ -104,6 +106,20 @@ const elements = {
 let currentOfficials = [];
 let officialsToDelete = null;
 let searchTimeout; // For debouncing search
+
+// ============ PHONE VALIDATION ============
+/**
+ * Validates phone number format
+ * Accepts: +1234567890, (123) 456-7890, 123-456-7890, etc.
+ * @param {string} phone - Phone number to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+function isValidPhone(phone) {
+    if (!phone) return true; // Optional field
+    // Allow digits, spaces, hyphens, parentheses, plus sign
+    const phoneRegex = /^[+]?[(]?[0-9]{1,3}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/;
+    return phoneRegex.test(phone.trim());
+}
 
 // ============ DEBOUNCE FUNCTION ============
 /**
@@ -123,14 +139,42 @@ function debounce(func, wait = 300) {
     };
 }
 
-// ============ NEW: POPULATE POSITION DROPDOWN FUNCTION ============
+// ============ NEW: GET TAKEN POSITIONS IN CATEGORY ============
+/**
+ * Get all positions that are already taken in a category
+ * @param {string} category - The category to check
+ * @param {number} excludeOfficialId - Optional: Official ID to exclude (for editing)
+ * @returns {Set} Set of taken positions
+ */
+function getTakenPositions(category, excludeOfficialId = null) {
+    const officialsArray = Array.isArray(currentOfficials) ? currentOfficials : (currentOfficials.data || []);
+    const takenPositions = new Set();
+    
+    officialsArray.forEach(official => {
+        // Skip the official being edited
+        if (excludeOfficialId && official.id === excludeOfficialId) {
+            return;
+        }
+        
+        // Add position if it's in this category
+        if (official.category === category && official.position) {
+            takenPositions.add(official.position);
+        }
+    });
+    
+    return takenPositions;
+}
+
+// ============ UPDATED: POPULATE POSITION DROPDOWN FUNCTION ============
 /**
  * Populates position dropdown based on selected category
+ * Hides positions that are already taken
  * Called when category selection changes
  * @param {string} category - The selected category
  * @param {HTMLElement} positionSelect - The position select element to populate
+ * @param {number} excludeOfficialId - Optional: Official ID to exclude (for editing)
  */
-function populatePositions(category, positionSelect) {
+function populatePositions(category, positionSelect, excludeOfficialId = null) {
     // Clear existing positions
     positionSelect.innerHTML = '<option value="">Select a position</option>';
     
@@ -139,16 +183,33 @@ function populatePositions(category, positionSelect) {
         // Get positions for this category
         const positions = POSITION_BY_CATEGORY[category];
         
-        // Add each position as an option
+        // Get taken positions in this category
+        const takenPositions = getTakenPositions(category, excludeOfficialId);
+        
+        // Add each position as an option (only if not taken)
         positions.forEach(position => {
-            const option = document.createElement('option');
-            option.value = position;
-            option.textContent = position;
-            positionSelect.appendChild(option);
+            const isTaken = takenPositions.has(position);
+            
+            if (!isTaken) {
+                const option = document.createElement('option');
+                option.value = position;
+                option.textContent = position;
+                positionSelect.appendChild(option);
+            }
         });
         
-        // Enable the position select
-        positionSelect.disabled = false;
+        // If all positions are taken, show a message
+        if (positionSelect.options.length === 1) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '-- All positions filled --';
+            option.disabled = true;
+            positionSelect.appendChild(option);
+            positionSelect.disabled = true;
+        } else {
+            // Enable the position select
+            positionSelect.disabled = false;
+        }
     } else {
         // Disable if no positions defined
         positionSelect.disabled = true;
@@ -275,6 +336,7 @@ function renderTable(officials) {
         
         // NEW: Display position instead of just category
         const displayPosition = official.position || official.category;
+        const displayContact = official.contact || '';
         
         row.innerHTML = `
             <td data-label="Photo">
@@ -288,6 +350,9 @@ function renderTable(officials) {
             </td>
             <td data-label="Position">
                 <span class="position-text">${displayPosition}</span>
+            </td>
+            <td data-label="Contact">
+                <span class="contact-text">${displayContact}</span>
             </td>
             <td data-label="Date Added">
                 <span class="date-text">${formatDate(official.created_at)}</span>
@@ -368,11 +433,18 @@ async function handleAdd(event) {
     const name = elements.officialName.value.trim();
     const category = elements.officialCategory.value;
     const position = elements.officialPosition.value;  // NEW
+    const contact = elements.officialContact ? elements.officialContact.value.trim() : '';
     const photo = elements.officialPhoto.files[0];
     
     // Validation - UPDATED to include position
     if (!name || !category || !position || !photo) {
         showMessage(elements.addMessageArea, 'Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    // Validate phone if provided
+    if (contact && !isValidPhone(contact)) {
+        showMessage(elements.addMessageArea, 'Please enter a valid phone number.', 'error');
         return;
     }
     
@@ -390,11 +462,12 @@ async function handleAdd(event) {
         return;
     }
     
-    // Create FormData - UPDATED to include position
+    // Create FormData - UPDATED to include position and contact
     const formData = new FormData();
     formData.append('name', name);
     formData.append('category', category);
     formData.append('position', position);  // NEW
+    if (contact) formData.append('contact', contact);
     formData.append('photo', photo);
     
     setLoading(elements.addSubmitBtn, true, 'Add Official');
@@ -486,9 +559,11 @@ function openEditModal(officialJson) {
     elements.editName.value = official.name;
     elements.editCategory.value = official.category;
     elements.editPosition.value = official.position || '';  // NEW
+    // Populate contact if present
+    if (elements.editContact) elements.editContact.value = official.contact || '';
     
-    // NEW: Populate position dropdown for the selected category
-    populatePositions(official.category, elements.editPosition);
+    // NEW: Populate position dropdown for the selected category, excluding current official
+    populatePositions(official.category, elements.editPosition, official.id);
     
     // Show current photo
     if (official.photo) {
@@ -517,11 +592,18 @@ async function handleEdit(event) {
     const name = elements.editName.value.trim();
     const category = elements.editCategory.value;
     const position = elements.editPosition.value;  // NEW
+    const contact = elements.editContact ? elements.editContact.value.trim() : '';
     const photo = elements.editPhoto.files[0];
     
     // Validation - UPDATED to include position
     if (!name || !category || !position) {
         showMessage(elements.editMessageArea, 'Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    // Validate phone if provided
+    if (contact && !isValidPhone(contact)) {
+        showMessage(elements.editMessageArea, 'Please enter a valid phone number.', 'error');
         return;
     }
     
@@ -536,6 +618,7 @@ async function handleEdit(event) {
     formData.append('name', name);
     formData.append('category', category);
     formData.append('position', position);  // NEW
+    if (contact) formData.append('contact', contact);
     if (photo) {
         formData.append('photo', photo);
     }
@@ -594,13 +677,16 @@ function setupEventListeners() {
     // NEW: Category change handler for Add form - populate positions
     elements.officialCategory.addEventListener('change', (e) => {
         const selectedCategory = e.target.value;
+        // No exclusion needed for new officials
         populatePositions(selectedCategory, elements.officialPosition);
     });
     
     // NEW: Category change handler for Edit modal - populate positions
     elements.editCategory.addEventListener('change', (e) => {
         const selectedCategory = e.target.value;
-        populatePositions(selectedCategory, elements.editPosition);
+        // Exclude current official so their current position is still available
+        const currentOfficialId = parseInt(elements.editOfficialId.value);
+        populatePositions(selectedCategory, elements.editPosition, currentOfficialId);
     });
     
     // Modal close buttons
