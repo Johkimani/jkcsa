@@ -1,6 +1,6 @@
 import React from 'react'
 import { AdminProvider, useAdmin } from './context/AdminContext'
-import Admin from './pages/Admin'
+import OfficialsAdmin from './pages/OfficialsAdmin'
 import Official from './pages/Official'
 
 function AppContent(){
@@ -57,7 +57,7 @@ function AppContent(){
       </header>
 
       <main className="max-w-6xl mx-auto p-3 sm:p-4 pb-safe">
-        {displayRoute.startsWith('/admin') ? <Admin /> : <Official />}
+        {displayRoute.startsWith('/admin') ? <OfficialsAdmin /> : <Official />}
       </main>
     </div>
   )
