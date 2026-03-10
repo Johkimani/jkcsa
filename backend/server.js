@@ -36,6 +36,12 @@ initDB().catch((err) => {
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve React frontend static files (if built)
+const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+}
+
 // Routes
 app.use('/api/officials', officialsRoutes);
 
@@ -79,6 +85,16 @@ app.use((err, req, res, next) => {
       ? 'Internal server error' 
       : err.message
   });
+});
+
+// SPA fallback: serve React's index.html for unknown routes
+app.get('*', (req, res) => {
+  const indexPath = path.join(__dirname, '..', 'frontend', 'dist', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ success: false, message: 'Not found' });
+  }
 });
 
 // Start server

@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-gray-50 text-slate-800;
+}
+
+/* Custom Toast Positioning for Mobile */
+@media (max-width: 640px) {
+  div[style*="top: 40px; left: 20px; bottom: 40px; right: 20px;"] {
+    top: 20px !important;
+    left: 20px !important;
+    right: 20px !important;
+    justify-content: center !important;
+  }
+  
+  .react-hot-toast {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}
+
+@layer base {
+  :root {
+    --foreground-rgb: 0, 0, 0;
+    --background-start-rgb: 214, 219, 220;
+    --background-end-rgb: 255, 255, 255;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Safe area insets for notched devices */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Touch-friendly base styles */
+  input, select, textarea, button {
+    @apply min-h-touch;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  @media (min-width: 640px) {
+    input, select, textarea, button {
+      font-size: inherit;
+    }
+  }
+}
+
+@layer components {
+  /* Mobile table card layout - converts table rows to cards on small screens */
+  .mobile-table-card {
+    @apply block w-full;
+  }
+  
+  @media (max-width: 767px) {
+    .mobile-table-card thead {
+      @apply hidden;
+    }
+    
+    .mobile-table-card tbody,
+    .mobile-table-card tr {
+      @apply block w-full;
+    }
+    
+    .mobile-table-card tr {
+      @apply bg-white rounded-lg shadow-md mb-4 p-4 border border-gray-200;
+    }
+    
+    .mobile-table-card td {
+      @apply block w-full py-2 px-0 border-b border-gray-100 last:border-0;
+    }
+    
+    .mobile-table-card td::before {
+      content: attr(data-label);
+      @apply block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1;
+    }
+    
+    .mobile-table-card td:first-child {
+      @apply pt-0;
+    }
+    
+    .mobile-table-card td:last-child {
+      @apply pb-0;
+    }
+  }
+  
+  /* Touch-friendly action buttons */
+  .btn-touch {
+    @apply min-w-touch min-h-touch px-4 py-2;
+  }
+  
+  /* Mobile-optimized modal */
+  .modal-mobile {
+    @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4;
+  }
+  
+  .modal-content-mobile {
+    @apply w-full sm:max-w-lg sm:rounded-xl rounded-t-xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl;
+  }
+  
+  /* Responsive card grid */
+  .card-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+  }
+  
+  /* Mobile navigation */
+  .nav-mobile {
+    @apply flex flex-col sm:flex-row gap-2 sm:gap-4;
+  }
+  
+  /* Responsive typography */
+  .heading-responsive {
+    @apply text-2xl sm:text-3xl md:text-4xl font-bold;
+  }
+  
+  .subheading-responsive {
+    @apply text-lg sm:text-xl md:text-2xl font-semibold;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Safe area utilities */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .px-safe {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}

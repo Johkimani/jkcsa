@@ -1,6 +1,17 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 
+CREATE TABLE IF NOT EXISTS election_terms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    year INTEGER NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    is_current BOOLEAN DEFAULT FALSE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS officials (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -8,6 +19,9 @@ CREATE TABLE IF NOT EXISTS officials (
     position VARCHAR(100),
     contact VARCHAR(100),
     photo TEXT,
+    election_term_id INTEGER REFERENCES election_terms(id) ON DELETE SET NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+    term_of_service VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

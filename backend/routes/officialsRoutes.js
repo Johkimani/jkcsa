@@ -1,27 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/upload');
-const {
-  getAllOfficials,
-  getOfficialById,
-  createOfficial,
-  updateOfficial,
-  deleteOfficial
-} = require('../controllers/officialsController');
+const officialsController = require('../controllers/officialsController');
 
-// GET all officials
-router.get('/', getAllOfficials);
+// IMPORTANT: Specific routes must come BEFORE /:id route
 
-// GET single official by ID
-router.get('/:id', getOfficialById);
+// Archive and history routes - DELETE route MUST come BEFORE GET routes with :param to avoid conflicts
+router.delete('/history/:officialId', officialsController.deleteArchivedOfficial);
+router.delete('/history', officialsController.bulkDeleteArchivedOfficials);
+router.get('/history', officialsController.getOfficialsByTerm);
+router.get('/history/export', officialsController.exportArchivedOfficials);
+router.get('/history/:termId', officialsController.getOfficialsByTerm);
+router.get('/history/:termId/export', officialsController.exportArchivedOfficials);
 
-// POST create new official with photo upload
-router.post('/', upload.single('photo'), createOfficial);
+router.post('/archive', officialsController.archiveCurrentOfficials);
+router.post('/restore', officialsController.restoreArchivedOfficials);
 
-// PUT update official with optional photo upload
-router.put('/:id', upload.single('photo'), updateOfficial);
+// Election term management routes (must come before /:id)
+router.get('/terms', officialsController.getAllElectionTerms);
+router.get('/terms/current', officialsController.getCurrentElectionTerm);
+router.post('/terms', officialsController.createElectionTerm);
+router.put('/terms/:id', officialsController.updateElectionTerm);
+router.delete('/terms/:id', officialsController.deleteElectionTerm);
 
-// DELETE official
-router.delete('/:id', deleteOfficial);
+// Existing officials routes
+router.get('/', officialsController.getAllOfficials);
+router.get('/export', officialsController.exportOfficials);
+router.get('/:id', officialsController.getOfficialById);
+router.post('/', upload.single('photo'), officialsController.createOfficial);
+router.put('/:id', upload.single('photo'), officialsController.updateOfficial);
+router.delete('/:id', officialsController.deleteOfficial);
 
 module.exports = router;
