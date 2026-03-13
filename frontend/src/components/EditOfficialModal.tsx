@@ -3,7 +3,7 @@ import { X, Save, ShieldAlert, Phone } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input/input';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { Official } from '../hooks/useOfficials';
-import { POSITION_BY_CATEGORY } from '../constants/adminConstants';
+import { POSITION_BY_CATEGORY, JUMUIYA_OPTIONS, JUMUIYA_ROLES } from '../constants/adminConstants';
 import { resizeImage } from '../utils/imageOptimization';
 
 interface EditOfficialModalProps {
@@ -12,9 +12,16 @@ interface EditOfficialModalProps {
   official: Official | null;
   onUpdate: (id: number, formData: FormData) => Promise<void>;
   isUpdating: boolean;
+  mode?: 'csa' | 'jumuiya';
+  allOfficials?: any[];
+  displayTerm?: string;
+  officialsExist?: boolean;
 }
 
-export function EditOfficialModal({ isOpen, onClose, official, onUpdate, isUpdating }: EditOfficialModalProps) {
+export function EditOfficialModal({ 
+  isOpen, onClose, official, onUpdate, isUpdating, mode = 'csa', allOfficials = [],
+  displayTerm, officialsExist
+}: EditOfficialModalProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [position, setPosition] = useState('');
@@ -33,6 +40,22 @@ export function EditOfficialModal({ isOpen, onClose, official, onUpdate, isUpdat
       setPhoto(null);
     }
   }, [official]);
+
+  const availableJumuiyaRoles = React.useMemo(() => {
+    if (mode !== 'jumuiya' || !category) return JUMUIYA_ROLES;
+    const occupiedRoles = allOfficials
+      .filter(o => o.category === category && o.id !== official?.id)
+      .map(o => o.position);
+    return JUMUIYA_ROLES.filter(role => !occupiedRoles.includes(role));
+  }, [mode, category, allOfficials, official]);
+
+  const availableCSARoles = React.useMemo(() => {
+    if (mode !== 'csa' || !category) return POSITION_BY_CATEGORY[category] || [];
+    const occupiedRoles = allOfficials
+      .filter(o => o.category === category && o.id !== official?.id)
+      .map(o => o.position);
+    return (POSITION_BY_CATEGORY[category] || []).filter(role => !occupiedRoles.includes(role));
+  }, [mode, category, allOfficials, official]);
 
   if (!isOpen || !official) return null;
 
@@ -61,7 +84,8 @@ export function EditOfficialModal({ isOpen, onClose, official, onUpdate, isUpdat
     onClose();
   };
 
-  const isInvalid = !name || !category || !position || !!contactError || isUpdating;
+  const termMismatch = officialsExist && termOfService && termOfService !== displayTerm;
+  const isInvalid = !name || !category || !position || !!contactError || isUpdating || !!termMismatch;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -98,8 +122,11 @@ export function EditOfficialModal({ isOpen, onClose, official, onUpdate, isUpdat
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white" 
                 required
               >
-                <option value="">Select category</option>
-                {Object.keys(POSITION_BY_CATEGORY).map(k => <option key={k} value={k}>{k}</option>)}
+                <option value="">{mode === 'jumuiya' ? 'Select Jumuiya' : 'Select category'}</option>
+                {mode === 'csa' 
+                  ? Object.keys(POSITION_BY_CATEGORY).map(k => <option key={k} value={k}>{k}</option>)
+                  : JUMUIYA_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)
+                }
               </select>
             </div>
             <div className="space-y-1">
@@ -111,8 +138,11 @@ export function EditOfficialModal({ isOpen, onClose, official, onUpdate, isUpdat
                 required 
                 disabled={!category}
               >
-                <option value="">Select position</option>
-                {category && POSITION_BY_CATEGORY[category].map(p => <option key={p} value={p}>{p}</option>)}
+                <option value="">Select position/role</option>
+                {mode === 'csa'
+                  ? (category && availableCSARoles.map(p => <option key={p} value={p}>{p}</option>))
+                  : (category && availableJumuiyaRoles.map(p => <option key={p} value={p}>{p}</option>))
+                }
               </select>
             </div>
           </div>
@@ -137,8 +167,16 @@ export function EditOfficialModal({ isOpen, onClose, official, onUpdate, isUpdat
             <input 
               value={termOfService} 
               onChange={e => setTermOfService(e.target.value)} 
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none ${termMismatch ? 'border-red-500 bg-red-50' : 'border-gray-300'}`} 
             />
+            {officialsExist && displayTerm && (
+              <p className={`text-[10px] mt-1 font-bold italic flex items-center gap-1 ${termMismatch ? 'text-red-600' : 'text-blue-600'}`}>
+                {termMismatch 
+                  ? `Error: Term must match active records (${displayTerm})`
+                  : `Active year cycle: ${displayTerm}`
+                }
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">

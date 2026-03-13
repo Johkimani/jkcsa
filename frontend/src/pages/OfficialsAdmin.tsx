@@ -3,9 +3,10 @@ import { Download, Share2, History, LayoutDashboard, Search, Archive } from 'luc
 import toast from 'react-hot-toast';
 
 import { useOfficials, Official } from '../hooks/useOfficials';
+import { useJumuiyaOfficials } from '../hooks/useJumuiyaOfficials';
 import { useTerms } from '../hooks/useTerms';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { API_BASE } from '../utils/api';
+import { API_BASE, API_JUMUIYA_BASE } from '../utils/api';
 import { Sun, Moon } from 'lucide-react';
 
 import { DashboardStats } from '../components/DashboardStats';
@@ -29,9 +30,19 @@ export default function Admin() {
     terms, currentTerm, archiveOfficials, isArchiving 
   } = useTerms();
 
+  const jumuiyaApi = useJumuiyaOfficials(currentTerm?.id);
+
   const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   // Local UI State
+  const [adminMode, setAdminMode] = useState<'csa' | 'jumuiya'>(() => {
+    return (localStorage.getItem('admin_mode') as 'csa' | 'jumuiya') || 'csa';
+  });
+
+  const handleModeChange = (mode: 'csa' | 'jumuiya') => {
+    setAdminMode(mode);
+    localStorage.setItem('admin_mode', mode);
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [editingOfficial, setEditingOfficial] = useState<Official | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
@@ -46,13 +57,28 @@ export default function Admin() {
   });
 
   // Derived State
+  const activeOfficialsList = adminMode === 'csa' ? officials : (jumuiyaApi.officials as Official[]);
+  const isListLoading = adminMode === 'csa' ? isLoadingOfficials : jumuiyaApi.isLoading;
+  const isListAdding = adminMode === 'csa' ? isAdding : jumuiyaApi.isAdding;
+  const isListDeleting = adminMode === 'csa' ? isDeleting : jumuiyaApi.isDeleting;
+  const isListUpdating = adminMode === 'csa' ? isUpdating : jumuiyaApi.isUpdating;
+
   const displayTerm = useMemo(() => {
-    if (officials.length > 0) {
-      const termStrings = Array.from(new Set(officials.map(o => o.term_of_service).filter(Boolean)));
+    if (activeOfficialsList.length > 0) {
+      const termStrings = Array.from(new Set(activeOfficialsList.map(o => o.term_of_service).filter(Boolean)));
       if (termStrings.length > 0) return termStrings[0];
     }
     return currentTerm?.year || currentTerm?.name;
-  }, [officials, currentTerm]);
+  }, [activeOfficialsList, currentTerm]);
+
+  const jumuiyaCountMap = useMemo(() => {
+    if (adminMode !== 'jumuiya') return {};
+    return activeOfficialsList.reduce((acc: Record<string, number>, official) => {
+      const cat = official.category || 'Other';
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+  }, [activeOfficialsList, adminMode]);
 
   // Handlers
   const handleDownload = async () => {
@@ -61,13 +87,34 @@ export default function Admin() {
       .map(([k, _]) => k)
       .join(',');
 
-    const url = `${API_BASE}/export?fields=${selectedFields}${displayTerm ? `&term_of_service=${displayTerm}` : ''}`;
+    const baseUrl = adminMode === 'csa' ? API_BASE : API_JUMUIYA_BASE;
+    const url = `${baseUrl}/export?fields=${selectedFields}${displayTerm ? `&term_of_service=${displayTerm}` : ''}`;
     window.open(url, '_blank');
   };
 
   const handleDelete = async (official: Official) => {
     if (window.confirm(`Are you sure you want to delete ${official.name}?`)) {
-      await deleteOfficial(official.id);
+      if (adminMode === 'csa') {
+        await deleteOfficial(official.id);
+      } else {
+        await jumuiyaApi.deleteOfficial(official.id);
+      }
+    }
+  };
+
+  const handleAdd = async (fd: FormData) => {
+    if (adminMode === 'csa') {
+       await addOfficial(fd);
+    } else {
+       await jumuiyaApi.addOfficial(fd);
+    }
+  };
+
+  const handleUpdate = async (id: number, fd: FormData) => {
+    if (adminMode === 'csa') {
+       await updateOfficial({id, formData: fd});
+    } else {
+       await jumuiyaApi.updateOfficial({id, formData: fd});
     }
   };
 
@@ -113,20 +160,44 @@ export default function Admin() {
 
         {/* Stats Overview */}
         <DashboardStats 
-          officialsCount={officials.length} 
-          archivedCount={0} // Fixed in HistoryModal, might want a global count query later
+          officialsCount={activeOfficialsList.length} 
+          archivedCount={adminMode === 'csa' 
+            ? Number(currentTerm?.archived_csa_count || 0) 
+            : Number(currentTerm?.archived_jumuiya_count || 0)
+          } 
           currentTerm={currentTerm} 
+          displayTerm={displayTerm}
         />
+
+        {/* Mode Switcher */}
+        <div className="flex items-center justify-center mb-8">
+           <div className="bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-1 overflow-hidden transition-colors">
+              <button 
+                onClick={() => handleModeChange('csa')}
+                className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${adminMode === 'csa' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+              >
+                 CSA Officials
+              </button>
+              <button 
+                onClick={() => handleModeChange('jumuiya')}
+                className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${adminMode === 'jumuiya' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+              >
+                 Jumuiya Officials
+              </button>
+           </div>
+        </div>
 
         {/* Main Content Grid */}
         <div className="space-y-8">
           
           {/* Form Section */}
           <OfficialFormSection 
-            onSubmit={addOfficial}
-            isSubmitting={isAdding}
+            onSubmit={handleAdd}
+            isSubmitting={isListAdding}
             displayTerm={displayTerm}
-            officialsExist={officials.length > 0}
+            officialsExist={activeOfficialsList.length > 0}
+            mode={adminMode}
+            allOfficials={activeOfficialsList}
           />
 
           {/* Table Controls (Search & Export) */}
@@ -177,19 +248,20 @@ export default function Admin() {
           </div>
 
           {/* Data Table */}
-          {isLoadingOfficials ? (
+          {isListLoading ? (
             <div className="bg-white rounded-2xl h-64 shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-4">
               <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
               <p className="text-gray-500 font-medium">Syncing officials list...</p>
             </div>
           ) : (
             <OfficialsTable 
-              officials={officials}
+              officials={activeOfficialsList}
               searchTerm={searchTerm}
               onEdit={setEditingOfficial}
               onDelete={handleDelete}
-              isDeleting={isDeleting}
+              isDeleting={isListDeleting}
               displayTerm={displayTerm}
+              mode={adminMode}
             />
           )}
         </div>
@@ -200,8 +272,12 @@ export default function Admin() {
         isOpen={!!editingOfficial}
         onClose={() => setEditingOfficial(null)}
         official={editingOfficial}
-        onUpdate={(id, formData) => updateOfficial({ id, formData })}
-        isUpdating={isUpdating}
+        onUpdate={handleUpdate}
+        isUpdating={isListUpdating}
+        mode={adminMode}
+        allOfficials={activeOfficialsList}
+        displayTerm={displayTerm}
+        officialsExist={activeOfficialsList.length > 0}
       />
 
       <ArchiveModal 
@@ -209,22 +285,27 @@ export default function Admin() {
         onClose={() => setIsArchiveOpen(false)}
         onConfirm={archiveOfficials}
         isArchiving={isArchiving}
-        officialsCount={officials.length}
+        officialsCount={activeOfficialsList.length}
         electionTerms={terms}
         currentTerm={currentTerm}
+        mode={adminMode}
+        jumuiyaCountMap={jumuiyaCountMap}
+        activeTerm={displayTerm}
       />
 
       <HistoryModal 
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        activeOfficials={officials}
+        activeOfficials={activeOfficialsList}
         activeTerm={displayTerm}
+        mode={adminMode}
       />
 
       <ShareModal 
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
-        officials={officials}
+        officials={activeOfficialsList}
+        mode={adminMode}
       />
     </div>
   );

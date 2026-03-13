@@ -11,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const pool = require('./config/db');
 const officialsRoutes = require('./routes/officialsRoutes');
+const jumuiyaOfficialsRoutes = require('./routes/jumuiyaOfficialsRoutes');
 
 // Middleware
 app.use(cors());
@@ -44,6 +45,7 @@ if (fs.existsSync(frontendPath)) {
 
 // Routes
 app.use('/api/officials', officialsRoutes);
+app.use('/api/jumuiya-officials', jumuiyaOfficialsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

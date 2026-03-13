@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { API_TERMS, API_ARCHIVE } from '../utils/api';
+import { API_TERMS, API_ARCHIVE, API_JUMUIYA_ARCHIVE } from '../utils/api';
 import toast from 'react-hot-toast';
 
 export interface ElectionTerm {
@@ -11,6 +11,8 @@ export interface ElectionTerm {
   description?: string;
   is_current: boolean;
   created_at?: string;
+  archived_csa_count?: string | number;
+  archived_jumuiya_count?: string | number;
 }
 
 export function useTerms() {
@@ -60,8 +62,9 @@ export function useTerms() {
   });
 
   const archiveOfficialsMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await fetch(API_ARCHIVE, {
+    mutationFn: async (payload: any & { isJumuiya?: boolean }) => {
+      const url = payload.isJumuiya ? API_JUMUIYA_ARCHIVE : API_ARCHIVE;
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -70,11 +73,11 @@ export function useTerms() {
       if (!res.ok) throw new Error(json.message || 'Failed to archive officials');
       return json;
     },
-    onSuccess: (json) => {
-      queryClient.invalidateQueries({ queryKey: ['officials'] });
+    onSuccess: (json, variables) => {
+      queryClient.invalidateQueries({ queryKey: variables.isJumuiya ? ['jumuiya_officials'] : ['officials'] });
       queryClient.invalidateQueries({ queryKey: ['terms'] });
       queryClient.invalidateQueries({ queryKey: ['currentTerm'] });
-      queryClient.invalidateQueries({ queryKey: ['history'] });
+      queryClient.invalidateQueries({ queryKey: variables.isJumuiya ? ['jumuiya_history'] : ['history'] });
       toast.success(`${json.data?.archived_count || 'Officials'} archived successfully!`);
     },
     onError: (error: Error) => {

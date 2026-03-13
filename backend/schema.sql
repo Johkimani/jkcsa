@@ -25,6 +25,20 @@ CREATE TABLE IF NOT EXISTS officials (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS jumuiya_officials (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    position VARCHAR(100),
+    contact VARCHAR(100),
+    photo TEXT,
+    election_term_id INTEGER REFERENCES election_terms(id) ON DELETE SET NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+    term_of_service VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
  
 CREATE TABLE IF NOT EXISTS members (
     member_id VARCHAR(30) PRIMARY KEY NOT NULL,

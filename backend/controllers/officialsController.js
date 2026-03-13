@@ -53,11 +53,35 @@ const formatPhotoUrl = (filePath) => {
   return null;
 };
 
+const syncCurrentTerm = async (termOfService) => {
+  if (!termOfService) return;
+  try {
+    const current = await pool.query('SELECT * FROM election_terms WHERE is_current = TRUE');
+    if (current.rows.length > 0) {
+      const term = current.rows[0];
+      if (term.year !== termOfService) {
+        await pool.query(
+          'UPDATE election_terms SET year = $1, name = $2 WHERE id = $3',
+          [termOfService, `${termOfService} Committee`, term.id]
+        );
+      }
+    }
+  } catch (err) {
+    console.error('Error syncing current term:', err);
+  }
+};
+
 // ==================== ELECTION TERM MANAGEMENT ====================
 
 const getAllElectionTerms = async (req, res) => {
   try {
-    const query = `SELECT * FROM election_terms ORDER BY is_current DESC, year DESC, created_at DESC`;
+    const query = `
+      SELECT et.*, 
+        (SELECT COUNT(*) FROM officials o WHERE o.election_term_id = et.id AND o.status = 'archived') as archived_csa_count,
+        (SELECT COUNT(*) FROM jumuiya_officials jo WHERE jo.election_term_id = et.id AND jo.status = 'archived') as archived_jumuiya_count
+      FROM election_terms et 
+      ORDER BY et.is_current DESC, et.year DESC, et.created_at DESC
+    `;
     const result = await pool.query(query);
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -68,7 +92,14 @@ const getAllElectionTerms = async (req, res) => {
 
 const getCurrentElectionTerm = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM election_terms WHERE is_current = TRUE');
+    const query = `
+      SELECT et.*, 
+        (SELECT COUNT(*) FROM officials o WHERE o.election_term_id = et.id AND o.status = 'archived') as archived_csa_count,
+        (SELECT COUNT(*) FROM jumuiya_officials jo WHERE jo.election_term_id = et.id AND jo.status = 'archived') as archived_jumuiya_count
+      FROM election_terms et 
+      WHERE et.is_current = TRUE
+    `;
+    const result = await pool.query(query);
     if (result.rows.length === 0) {
       return res.json({ success: true, data: null });
     }
@@ -259,7 +290,7 @@ const archiveCurrentOfficials = async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error archiving officials:', error);
-    res.status(500).json({ success: false, message: 'Failed to archive officials' });
+    res.status(500).json({ success: false, message: `Failed to archive officials: ${error.message}` });
   } finally {
     client.release();
   }
@@ -341,10 +372,15 @@ const restoreArchivedOfficials = async (req, res) => {
       });
     }
 
+    const contacts = await pool.query(
+      `SELECT contact FROM officials WHERE id = ANY($1) AND contact IS NOT NULL AND contact != ''`,
+      [officialIds]
+    );
+
     // 2. Check for contact conflicts
     if (contacts.rows.length > 0) {
       const dup = await pool.query(
-        `SELECT id FROM officials WHERE contact = ANY($1) AND status = 'active' AND id != ANY($2)`,
+        `SELECT id FROM officials WHERE contact = ANY($1) AND status = 'active' AND NOT (id = ANY($2))`,
         [contacts.rows.map(c => c.contact), officialIds]
       );
       if (dup.rows.length > 0) {
@@ -378,7 +414,7 @@ const restoreArchivedOfficials = async (req, res) => {
 
       // Check against active officials
       const dupPos = await pool.query(
-        `SELECT name, position FROM officials WHERE position = ANY($1) AND status = 'active' AND id != ANY($2)`,
+        `SELECT name, position FROM officials WHERE position = ANY($1) AND status = 'active' AND NOT (id = ANY($2))`,
         [positions, officialIds]
       );
 
@@ -404,7 +440,7 @@ const restoreArchivedOfficials = async (req, res) => {
     });
   } catch (error) {
     console.error('Error restoring officials:', error);
-    res.status(500).json({ success: false, message: 'Failed to restore officials' });
+    res.status(500).json({ success: false, message: error.message || 'Failed to restore officials' });
   }
 };
 
@@ -425,7 +461,8 @@ const getAllOfficials = async (req, res) => {
                et.name as term_name, et.year as term_year
         FROM officials o
         LEFT JOIN election_terms et ON o.election_term_id = et.id
-        WHERE o.election_term_id = $1`;
+        WHERE (o.election_term_id = $1 OR o.status = 'active' OR o.status IS NULL)
+        AND (o.status = 'active' OR o.status IS NULL)`;
       params.push(termId);
       if (termOfService) {
         query += ` AND o.term_of_service = $2`;
@@ -543,6 +580,8 @@ const createOfficial = async (req, res) => {
       [name, category, position || null, normalizedContact || null, photoUrl, termId, term_of_service || null]
     );
 
+    await syncCurrentTerm(term_of_service);
+
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -612,6 +651,10 @@ const updateOfficial = async (req, res) => {
        WHERE id = $7 RETURNING *`,
       [name, category, position, normalizedContact, photoUrl, term_of_service || null, id]
     );
+
+    if (term_of_service) {
+      await syncCurrentTerm(term_of_service);
+    }
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {

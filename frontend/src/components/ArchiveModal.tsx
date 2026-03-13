@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Calendar, Info, CheckCircle2 } from 'lucide-react';
 import { ElectionTerm } from '../hooks/useTerms';
+import { JUMUIYA_OPTIONS } from '../constants/adminConstants';
 
 interface ArchiveModalProps {
   isOpen: boolean;
@@ -10,6 +11,9 @@ interface ArchiveModalProps {
   officialsCount: number;
   electionTerms: ElectionTerm[];
   currentTerm: ElectionTerm | null;
+  mode?: 'csa' | 'jumuiya';
+  jumuiyaCountMap?: Record<string, number>;
+  activeTerm?: string;
 }
 
 export function ArchiveModal({ 
@@ -19,15 +23,37 @@ export function ArchiveModal({
   isArchiving, 
   officialsCount, 
   electionTerms, 
-  currentTerm 
+  currentTerm,
+  mode = 'csa',
+  jumuiyaCountMap = {},
+  activeTerm
 }: ArchiveModalProps) {
   const [useExistingTerm, setUseExistingTerm] = useState(true);
   const [termName, setTermName] = useState('');
-  const [termYear, setTermYear] = useState(new Date().getFullYear().toString());
+  const [termYear, setTermYear] = useState('');
   const [termStartDate, setTermStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [termEndDate, setTermEndDate] = useState('');
   const [termDescription, setTermDescription] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [selectedJumuiya, setSelectedJumuiya] = useState('all');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      // 1. Determine defaults for "New Term" fields
+      const inferredYear = activeTerm || currentTerm?.year || new Date().getFullYear().toString();
+      const inferredName = activeTerm ? `${activeTerm} Committee` : (currentTerm?.name || `${inferredYear} Committee`);
+      
+      setTermYear(inferredYear);
+      setTermName(inferredName);
+
+      // 2. Automatically switch to "New Term" mode if there's a mismatch with the globally active term
+      if (activeTerm && currentTerm && activeTerm !== currentTerm.year.toString()) {
+        setUseExistingTerm(false);
+      } else {
+        setUseExistingTerm(true);
+      }
+    }
+  }, [isOpen, currentTerm, activeTerm]);
 
   if (!isOpen) return null;
 
@@ -45,11 +71,22 @@ export function ArchiveModal({
       if (termDescription) payload.description = termDescription;
     }
 
+    if (mode === 'jumuiya') {
+      payload.isJumuiya = true;
+      if (selectedJumuiya !== 'all') {
+        payload.category = selectedJumuiya;
+      }
+    }
+
     await onConfirm(payload);
     onClose();
   };
 
   const isInvalid = (!useExistingTerm && (!termName || !termYear || !termStartDate)) || !confirmed || isArchiving;
+  
+  const displayCount = mode === 'jumuiya' && selectedJumuiya !== 'all' 
+    ? (jumuiyaCountMap[selectedJumuiya] || 0) 
+    : officialsCount;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -61,12 +98,28 @@ export function ArchiveModal({
           <div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Archive Current officials</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              This will move all <span className="font-bold text-amber-700 dark:text-amber-500">{officialsCount}</span> active officials to history. They will no longer appear on the main page.
+              This will move <span className="font-bold text-amber-700 dark:text-amber-500">{displayCount}</span> active officials to history. They will no longer appear on the main page.
             </p>
           </div>
         </div>
 
         <div className="p-6 overflow-y-auto space-y-6">
+          {mode === 'jumuiya' && (
+            <section className="space-y-3">
+              <h4 className="font-bold text-gray-900 dark:text-white">Target Jumuiya</h4>
+              <select
+                value={selectedJumuiya}
+                onChange={(e) => setSelectedJumuiya(e.target.value)}
+                className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white"
+              >
+                <option value="all">All Jumuiyas ({officialsCount} officials)</option>
+                {JUMUIYA_OPTIONS.map(j => (
+                  <option key={j} value={j}>{j} ({jumuiyaCountMap[j] || 0} officials)</option>
+                ))}
+              </select>
+            </section>
+          )}
+
           <section className="space-y-4">
             <h4 className="flex items-center gap-2 font-bold text-gray-900 dark:text-white">
               <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -95,8 +148,18 @@ export function ArchiveModal({
                   Active Term: {currentTerm?.name || 'None'}
                 </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400/80 mt-1 ml-6">
-                  Officials will be archived under the currently active {currentTerm?.year} cycle.
+                  Officials will be archived under the currently active {currentTerm?.year || termYear} cycle.
                 </p>
+                {currentTerm && activeTerm && currentTerm.year !== activeTerm && (
+                  <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-900/50 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800 dark:text-amber-300">
+                      <strong>Term Mismatch Detected:</strong> Your official records are tagged with <span className="font-bold underline">{activeTerm}</span>, but the system's global "Active Term" is currently set to <span className="font-bold underline">{currentTerm.year}</span>. 
+                      <br /><br />
+                      To keep records clean, use <strong>"New Term"</strong> above to archive them under the correct {activeTerm} period.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">

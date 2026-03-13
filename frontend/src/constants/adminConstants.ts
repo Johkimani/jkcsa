@@ -38,3 +38,34 @@ Object.values(POSITION_BY_CATEGORY).forEach((positions, catIdx) => {
 });
 
 export const DEFAULT_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23e5e7eb" width="100" height="100"/%3E%3Ccircle cx="50" cy="35" r="15" fill="%239ca3af"/%3E%3Cpath d="M20 100 Q20 70 50 70 Q80 70 80 100" fill="%239ca3af"/%3E%3C/svg%3E';
+
+export const JUMUIYA_OPTIONS = [
+  'St. Antony',
+  'St. Augustine',
+  'St. Catherine',
+  'St. Dominic',
+  'St. Elizabeth',
+  'Maria Gorreti',
+  'St. Monica'
+];
+
+export const JUMUIYA_ROLES = [
+  'Chairperson',
+  'Ass Chairperson',
+  'Organizing Secretary',
+  'Treasurer',
+  'Secretary',
+  'Ass Secretary',
+  'Liturgist',
+  'Ass Liturgist'
+];
+
+export const JUMUIYA_COLORS: Record<string, string> = {
+  'St. Antony': 'from-purple-600 to-purple-700',
+  'St. Augustine': 'from-indigo-600 to-indigo-700',
+  'St. Catherine': 'from-rose-800 to-rose-900',
+  'St. Dominic': 'from-gray-600 to-gray-700',
+  'St. Elizabeth': 'from-green-600 to-green-700',
+  'Maria Gorreti': 'from-blue-600 to-blue-700',
+  'St. Monica': 'from-red-600 to-red-700'
+};

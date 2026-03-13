@@ -3,7 +3,7 @@ import PhoneInput from 'react-phone-number-input/input';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Upload, X, Check } from 'lucide-react';
-import { POSITION_BY_CATEGORY } from '../constants/adminConstants';
+import { POSITION_BY_CATEGORY, JUMUIYA_OPTIONS, JUMUIYA_ROLES } from '../constants/adminConstants';
 import { resizeImage } from '../utils/imageOptimization';
 
 interface OfficialFormSectionProps {
@@ -11,9 +11,11 @@ interface OfficialFormSectionProps {
   isSubmitting: boolean;
   displayTerm?: string;
   officialsExist: boolean;
+  mode?: 'csa' | 'jumuiya';
+  allOfficials?: any[];
 }
 
-export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, officialsExist }: OfficialFormSectionProps) {
+export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, officialsExist, mode = 'csa', allOfficials = [] }: OfficialFormSectionProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [position, setPosition] = useState('');
@@ -40,6 +42,22 @@ export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, offic
       setPreview(null);
     }
   };
+
+  const availableJumuiyaRoles = React.useMemo(() => {
+    if (mode !== 'jumuiya' || !category) return JUMUIYA_ROLES;
+    const occupiedRoles = allOfficials
+      .filter(o => o.category === category)
+      .map(o => o.position);
+    return JUMUIYA_ROLES.filter(role => !occupiedRoles.includes(role));
+  }, [mode, category, allOfficials]);
+
+  const availableCSARoles = React.useMemo(() => {
+    if (mode !== 'csa' || !category) return POSITION_BY_CATEGORY[category] || [];
+    const occupiedRoles = allOfficials
+      .filter(o => o.category === category)
+      .map(o => o.position);
+    return (POSITION_BY_CATEGORY[category] || []).filter(role => !occupiedRoles.includes(role));
+  }, [mode, category, allOfficials]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +87,8 @@ export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, offic
     }
   };
 
-  const isInvalid = !name || !category || !position || !photo || !!contactError || isSubmitting;
+  const termMismatch = officialsExist && termOfService && termOfService !== displayTerm;
+  const isInvalid = !name || !category || !position || !photo || !!contactError || isSubmitting || !!termMismatch;
 
   return (
     <div className="mb-12 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors">
@@ -101,8 +120,11 @@ export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, offic
               className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white outline-none appearance-none" 
               required
             >
-              <option value="">Select category</option>
-              {Object.keys(POSITION_BY_CATEGORY).map(k => <option key={k} value={k}>{k}</option>)}
+              <option value="">{mode === 'jumuiya' ? 'Select Jumuiya' : 'Select category'}</option>
+              {mode === 'csa' 
+                ? Object.keys(POSITION_BY_CATEGORY).map(k => <option key={k} value={k}>{k}</option>)
+                : JUMUIYA_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)
+              }
             </select>
           </div>
 
@@ -115,8 +137,11 @@ export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, offic
               required 
               disabled={!category}
             >
-              <option value="">Select position</option>
-              {category && POSITION_BY_CATEGORY[category].map(p => <option key={p} value={p}>{p}</option>)}
+              <option value="">Select position/role</option>
+              {mode === 'csa'
+                ? (category && availableCSARoles.map(p => <option key={p} value={p}>{p}</option>))
+                : (category && availableJumuiyaRoles.map(p => <option key={p} value={p}>{p}</option>))
+              }
             </select>
           </div>
 
@@ -142,9 +167,20 @@ export function OfficialFormSection({ onSubmit, isSubmitting, displayTerm, offic
               className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white outline-none" 
             />
             {officialsExist && displayTerm && (
-              <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1 font-medium italic flex items-center gap-1">
-                <Check className="w-3 h-3" /> Pre-filled to match current term ({displayTerm})
-              </p>
+              <>
+                <p className={`text-[11px] mt-1 font-medium italic flex items-center gap-1 ${termMismatch ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                  {termMismatch ? <X className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                  {termMismatch 
+                    ? `Warning: Must match currently active term (${displayTerm})`
+                    : `Pre-filled to match current term (${displayTerm})`
+                  }
+                </p>
+                {termMismatch && (
+                  <p className="text-[10px] text-red-400 leading-tight mt-1">
+                    To use a new year, please archive the current officials first.
+                  </p>
+                )}
+              </>
             )}
           </div>
 

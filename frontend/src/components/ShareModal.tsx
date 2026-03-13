@@ -2,38 +2,50 @@ import React, { useState, useEffect } from 'react';
 import { X, Share2, Copy, Send, Mail, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Official } from '../hooks/useOfficials';
+import { JUMUIYA_OPTIONS } from '../constants/adminConstants';
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   officials: Official[];
+  mode: 'csa' | 'jumuiya';
 }
 
-export function ShareModal({ isOpen, onClose, officials }: ShareModalProps) {
+export function ShareModal({ isOpen, onClose, officials, mode }: ShareModalProps) {
   const [fields, setFields] = useState({
     name: true,
     category: true,
     position: true,
     contact: true,
-    term: true,
   });
 
+  const [selectedJumuiya, setSelectedJumuiya] = useState<string>('All');
+  const [chairpersonsOnly, setChairpersonsOnly] = useState(false);
   const [shareText, setShareText] = useState('');
 
   useEffect(() => {
-    const text = officials
+    let filtered = [...officials];
+
+    if (mode === 'jumuiya') {
+      if (chairpersonsOnly) {
+        filtered = filtered.filter(o => o.position === 'Chairperson');
+      } else if (selectedJumuiya !== 'All') {
+        filtered = filtered.filter(o => o.category === selectedJumuiya);
+      }
+    }
+
+    const text = filtered
       .map(o => {
         const parts = [];
         if (fields.name) parts.push(o.name);
         if (fields.category) parts.push(`[${o.category}]`);
         if (fields.position) parts.push(o.position);
         if (fields.contact && o.contact) parts.push(`(${o.contact})`);
-        if (fields.term && o.term_of_service) parts.push(`Term: ${o.term_of_service}`);
         return parts.join(' - ');
       })
       .join('\n');
     setShareText(text);
-  }, [officials, fields]);
+  }, [officials, fields, selectedJumuiya, chairpersonsOnly, mode]);
 
   if (!isOpen) return null;
 
@@ -64,20 +76,57 @@ export function ShareModal({ isOpen, onClose, officials }: ShareModalProps) {
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto">
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Include Fields</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(fields).map(([key, value]) => (
-                <button
-                  key={key}
-                  onClick={() => setFields(prev => ({ ...prev, [key]: !value }))}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${value ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                >
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                  {value && <CheckCircle className="w-3 h-3 inline ml-1" />}
-                </button>
-              ))}
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Include Fields</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(fields).map(([key, value]) => (
+                  <button
+                    key={key}
+                    onClick={() => setFields(prev => ({ ...prev, [key as keyof typeof fields]: !value }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${value ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                  >
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                    {value && <CheckCircle className="w-3 h-3 inline ml-1" />}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {mode === 'jumuiya' && (
+              <div className="space-y-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Special Views</p>
+                  <button
+                    onClick={() => {
+                        setChairpersonsOnly(!chairpersonsOnly);
+                        if (!chairpersonsOnly) setSelectedJumuiya('All');
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all border ${chairpersonsOnly ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600'}`}
+                  >
+                    <span>Chairpersons of all Jumuiyas</span>
+                    {chairpersonsOnly && <CheckCircle className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {!chairpersonsOnly && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Jumuiya</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['All', ...JUMUIYA_OPTIONS].map(j => (
+                        <button
+                          key={j}
+                          onClick={() => setSelectedJumuiya(j)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedJumuiya === j ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-800'}`}
+                        >
+                          {j}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -7,9 +7,10 @@ interface DashboardStatsProps {
   officialsCount: number;
   archivedCount: number;
   currentTerm: ElectionTerm | null;
+  displayTerm?: string;
 }
 
-export function DashboardStats({ officialsCount, archivedCount, currentTerm }: DashboardStatsProps) {
+export function DashboardStats({ officialsCount, archivedCount, currentTerm, displayTerm }: DashboardStatsProps) {
   const stats = [
     {
       label: 'Active Officials',
@@ -25,7 +26,7 @@ export function DashboardStats({ officialsCount, archivedCount, currentTerm }: D
     },
     {
       label: 'Current Term',
-      value: currentTerm?.year || 'None',
+      value: officialsCount > 0 ? (displayTerm || currentTerm?.year || 'None') : 'None',
       icon: Calendar,
       color: 'bg-green-50 text-green-600',
     },

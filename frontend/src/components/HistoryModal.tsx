@@ -6,18 +6,20 @@ import {
 import toast from 'react-hot-toast';
 import { useHistory } from '../hooks/useHistory';
 import { useTerms } from '../hooks/useTerms';
-import { CATEGORY_COLORS, DEFAULT_AVATAR } from '../constants/adminConstants';
-import { UPLOAD_BASE, API_BASE } from '../utils/api';
+import { CATEGORY_COLORS, DEFAULT_AVATAR, JUMUIYA_OPTIONS, JUMUIYA_COLORS } from '../constants/adminConstants';
+import { UPLOAD_BASE, API_BASE, API_JUMUIYA_BASE, API_HISTORY, API_JUMUIYA_HISTORY } from '../utils/api';
 
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeOfficials: any[];
   activeTerm?: string;
+  mode?: 'csa' | 'jumuiya';
 }
 
-export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: HistoryModalProps) {
+export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm, mode = 'csa' }: HistoryModalProps) {
   const [termFilter, setTermFilter] = useState('');
+  const [jumuiyaFilter, setJumuiyaFilter] = useState('all');
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -35,7 +37,8 @@ export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: H
     termId: termFilter === 'all' ? undefined : termFilter,
     onlyArchived: true,
     page,
-    limit
+    limit,
+    mode
   });
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -70,7 +73,7 @@ export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: H
     }
 
     // 2. Safeguard against mixing with active table
-    if (activeOfficials.length > 0) {
+    if (mode === 'csa' && activeOfficials.length > 0) {
       if (activeTerm && firstRestoreTerm && activeTerm !== firstRestoreTerm) {
         toast.error(`Please archive current officials from [${activeTerm}] before restoring officials from [${firstRestoreTerm}]`);
         return;
@@ -97,7 +100,8 @@ export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: H
     const currentTermObj = terms.find(t => t.id.toString() === termFilter);
     const termOfService = currentTermObj ? currentTermObj.name : '';
     
-    const url = `${API_BASE}/archive/export/${termFilter}?term_of_service=${encodeURIComponent(termOfService)}`;
+    const historyBase = mode === 'jumuiya' ? API_JUMUIYA_HISTORY : API_HISTORY;
+    const url = `${historyBase}/${termFilter}/export?term_of_service=${encodeURIComponent(termOfService)}`;
     window.open(url, '_blank');
   };
 
@@ -148,11 +152,29 @@ export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: H
               className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none bg-gray-50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 transition-colors text-sm font-medium text-gray-900 dark:text-gray-100"
             >
               <option value="all">All Terms</option>
-              {terms.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.year})</option>
+              {terms
+                .filter(t => mode === 'csa' ? Number(t.archived_csa_count || 0) > 0 : Number(t.archived_jumuiya_count || 0) > 0)
+                .map(t => (
+                  <option key={t.id} value={t.id}>{t.year}</option>
               ))}
             </select>
           </div>
+
+          {mode === 'jumuiya' && (
+            <div className="flex-1 min-w-[200px] relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+              <select 
+                value={jumuiyaFilter} 
+                onChange={e => { setJumuiyaFilter(e.target.value); setPage(1); }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none appearance-none bg-gray-50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 transition-colors text-sm font-medium text-gray-900 dark:text-gray-100"
+              >
+                <option value="all">All Jumuiyas</option>
+                {JUMUIYA_OPTIONS.map(j => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             {!termFilter || termFilter === 'all' ? (
@@ -232,7 +254,7 @@ export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: H
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {history.map((o) => (
+              {history.filter(o => mode !== 'jumuiya' || jumuiyaFilter === 'all' || o.category === jumuiyaFilter).map((o) => (
                 <div key={o.id} className={`bg-white dark:bg-gray-800 rounded-xl border p-4 transition-all hover:shadow-md flex items-center gap-4 group ${selectedIds.includes(o.id) ? 'border-indigo-300 dark:border-indigo-500 ring-2 ring-indigo-50 dark:ring-indigo-900/20 bg-indigo-50/10 dark:bg-indigo-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
                   <input 
                     type="checkbox" 
@@ -256,7 +278,7 @@ export function HistoryModal({ isOpen, onClose, activeOfficials, activeTerm }: H
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{o.name}</h4>
                     <div className="flex flex-wrap items-center gap-3 mt-1">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-gradient-to-r ${CATEGORY_COLORS[o.category] || 'from-gray-500 to-gray-600 shadow-sm'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-gradient-to-r ${mode === 'jumuiya' ? (JUMUIYA_COLORS[o.category] || 'from-indigo-500 to-indigo-600') : (CATEGORY_COLORS[o.category] || 'from-gray-500 to-gray-600 shadow-sm')}`}>
                         {o.category}
                       </span>
                       <div className="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
