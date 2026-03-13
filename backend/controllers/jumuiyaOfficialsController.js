@@ -1,10 +1,13 @@
-const pool = require('../config/db');
-const fs = require('fs');
-const path = require('path');
-const XLSX = require('xlsx');
 const { officialSchema, termSchema } = require('../schemas/zodSchemas');
 const { z } = require('zod');
-const { parsePhoneNumberFromString } = require('libphonenumber-js');
+const { 
+  normalizePhone, 
+  isValidPhone, 
+  deleteFile, 
+  formatPhotoUrl, 
+  syncCurrentTerm,
+  formatPhoneForExcel 
+} = require('../utils/helpers');
 
 const VALID_JUMUIYAS = [
   'St. Antony',
@@ -27,55 +30,38 @@ const VALID_ROLES = [
   'Ass Liturgist'
 ];
 
-const normalizePhone = (phone) => {
-  if (!phone) return null;
-  const s = String(phone).trim();
-  let pn = parsePhoneNumberFromString(s);
-  if (!pn) pn = parsePhoneNumberFromString(s, 'KE');
-  if (!pn || !pn.isValid()) return null;
-  return pn.number;
-};
+/**
+ * Shared SQL sorting logic for Jumuiya officials.
+ * Groups by Jumuiya (alphabetically, ignoring "St.") and 
+ * orders by position superiority (Chairperson down to Liturgist).
+ */
+const JUMUIYA_SORT_SQL = `
+ORDER BY 
+  CASE 
+    WHEN o.category = 'St. Antony' THEN 1
+    WHEN o.category = 'St. Augustine' THEN 2
+    WHEN o.category = 'St. Catherine' THEN 3
+    WHEN o.category = 'St. Dominic' THEN 4
+    WHEN o.category = 'St. Elizabeth' THEN 5
+    WHEN o.category = 'Maria Gorreti' THEN 6
+    WHEN o.category = 'St. Monica' THEN 7
+    ELSE 8
+  END,
+  CASE
+    WHEN o.position = 'Chairperson' THEN 1
+    WHEN o.position = 'Ass Chairperson' THEN 2
+    WHEN o.position = 'Organizing Secretary' THEN 3
+    WHEN o.position = 'Treasurer' THEN 4
+    WHEN o.position = 'Secretary' THEN 5
+    WHEN o.position = 'Ass Secretary' THEN 6
+    WHEN o.position = 'Liturgist' THEN 7
+    WHEN o.position = 'Ass Liturgist' THEN 8
+    ELSE 9
+  END`;
 
-const isValidPhone = (phone) => {
-  if (!phone) return true;
-  const pn = parsePhoneNumberFromString(String(phone));
-  if (pn) return pn.isValid();
-  const pn2 = parsePhoneNumberFromString(String(phone), 'KE');
-  return pn2 ? pn2.isValid() : false;
-};
-
-const deleteFile = (filePath) => {
-  if (filePath && fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-};
-
-const formatPhotoUrl = (filePath) => {
-  if (filePath) {
-    return filePath.replace(/\\/g, '/').replace('./', '/');
-  }
-  return null;
-};
-
-
-const syncCurrentTerm = async (termOfService) => {
-  if (!termOfService) return;
-  try {
-    const current = await pool.query('SELECT * FROM election_terms WHERE is_current = TRUE');
-    if (current.rows.length > 0) {
-      const term = current.rows[0];
-      if (term.year !== termOfService) {
-        await pool.query(
-          'UPDATE election_terms SET year = $1, name = $2 WHERE id = $3',
-          [termOfService, `${termOfService} Committee`, term.id]
-        );
-      }
-    }
-  } catch (err) {
-    console.error('Error syncing current term:', err);
-  }
-};
-
+/**
+ * Fetches active or archived Jumuiya officials.
+ */
 const getAllJumuiyaOfficials = async (req, res) => {
   try {
     const termId = req.query.term_id;
@@ -98,28 +84,7 @@ const getAllJumuiyaOfficials = async (req, res) => {
         query += ` AND o.term_of_service = $2`;
         params.push(termOfService);
       }
-      query += ` ORDER BY 
-        CASE 
-          WHEN o.category = 'St. Antony' THEN 1
-          WHEN o.category = 'St. Augustine' THEN 2
-          WHEN o.category = 'St. Catherine' THEN 3
-          WHEN o.category = 'St. Dominic' THEN 4
-          WHEN o.category = 'St. Elizabeth' THEN 5
-          WHEN o.category = 'Maria Gorreti' THEN 6
-          WHEN o.category = 'St. Monica' THEN 7
-          ELSE 8
-        END,
-        CASE
-          WHEN o.position = 'Chairperson' THEN 1
-          WHEN o.position = 'Ass Chairperson' THEN 2
-          WHEN o.position = 'Organizing Secretary' THEN 3
-          WHEN o.position = 'Treasurer' THEN 4
-          WHEN o.position = 'Secretary' THEN 5
-          WHEN o.position = 'Ass Secretary' THEN 6
-          WHEN o.position = 'Liturgist' THEN 7
-          WHEN o.position = 'Ass Liturgist' THEN 8
-          ELSE 9
-        END`;
+      query += ` ${JUMUIYA_SORT_SQL}`;
     } else if (includeArchived) {
       query = `
         SELECT o.id, o.name, o.category, o.photo, o.position, o.contact, o.term_of_service, o.created_at, o.status,
@@ -130,28 +95,7 @@ const getAllJumuiyaOfficials = async (req, res) => {
         query += ` WHERE o.term_of_service = $1`;
         params.push(termOfService);
       }
-      query += ` ORDER BY o.status, et.year DESC, 
-        CASE 
-          WHEN o.category = 'St. Antony' THEN 1
-          WHEN o.category = 'St. Augustine' THEN 2
-          WHEN o.category = 'St. Catherine' THEN 3
-          WHEN o.category = 'St. Dominic' THEN 4
-          WHEN o.category = 'St. Elizabeth' THEN 5
-          WHEN o.category = 'Maria Gorreti' THEN 6
-          WHEN o.category = 'St. Monica' THEN 7
-          ELSE 8
-        END,
-        CASE
-          WHEN o.position = 'Chairperson' THEN 1
-          WHEN o.position = 'Ass Chairperson' THEN 2
-          WHEN o.position = 'Organizing Secretary' THEN 3
-          WHEN o.position = 'Treasurer' THEN 4
-          WHEN o.position = 'Secretary' THEN 5
-          WHEN o.position = 'Ass Secretary' THEN 6
-          WHEN o.position = 'Liturgist' THEN 7
-          WHEN o.position = 'Ass Liturgist' THEN 8
-          ELSE 9
-        END`;
+      query += ` ORDER BY o.status, et.year DESC ${JUMUIYA_SORT_SQL.replace('ORDER BY', ',')}`;
     } else {
       query = `
         SELECT o.id, o.name, o.category, o.photo, o.position, o.contact, o.term_of_service, o.created_at, o.status,
@@ -163,28 +107,7 @@ const getAllJumuiyaOfficials = async (req, res) => {
         query += ` AND o.term_of_service = $1`;
         params.push(termOfService);
       }
-      query += ` ORDER BY 
-        CASE 
-          WHEN o.category = 'St. Antony' THEN 1
-          WHEN o.category = 'St. Augustine' THEN 2
-          WHEN o.category = 'St. Catherine' THEN 3
-          WHEN o.category = 'St. Dominic' THEN 4
-          WHEN o.category = 'St. Elizabeth' THEN 5
-          WHEN o.category = 'Maria Gorreti' THEN 6
-          WHEN o.category = 'St. Monica' THEN 7
-          ELSE 8
-        END,
-        CASE
-          WHEN o.position = 'Chairperson' THEN 1
-          WHEN o.position = 'Ass Chairperson' THEN 2
-          WHEN o.position = 'Organizing Secretary' THEN 3
-          WHEN o.position = 'Treasurer' THEN 4
-          WHEN o.position = 'Secretary' THEN 5
-          WHEN o.position = 'Ass Secretary' THEN 6
-          WHEN o.position = 'Liturgist' THEN 7
-          WHEN o.position = 'Ass Liturgist' THEN 8
-          ELSE 9
-        END`;
+      query += ` ${JUMUIYA_SORT_SQL}`;
     }
 
     const result = await pool.query(query, params);
@@ -396,39 +319,9 @@ const exportJumuiyaOfficials = async (req, res) => {
       query += ` AND o.term_of_service = $1`;
       params.push(termOfService);
     }
-    query += ` ORDER BY 
-        CASE 
-          WHEN o.category = 'St. Antony' THEN 1
-          WHEN o.category = 'St. Augustine' THEN 2
-          WHEN o.category = 'St. Catherine' THEN 3
-          WHEN o.category = 'St. Dominic' THEN 4
-          WHEN o.category = 'St. Elizabeth' THEN 5
-          WHEN o.category = 'Maria Gorreti' THEN 6
-          WHEN o.category = 'St. Monica' THEN 7
-          ELSE 8
-        END,
-        CASE
-          WHEN o.position = 'Chairperson' THEN 1
-          WHEN o.position = 'Ass Chairperson' THEN 2
-          WHEN o.position = 'Organizing Secretary' THEN 3
-          WHEN o.position = 'Treasurer' THEN 4
-          WHEN o.position = 'Secretary' THEN 5
-          WHEN o.position = 'Ass Secretary' THEN 6
-          WHEN o.position = 'Liturgist' THEN 7
-          WHEN o.position = 'Ass Liturgist' THEN 8
-          ELSE 9
-        END`;
+    query += ` ${JUMUIYA_SORT_SQL}`;
 
     const result = await pool.query(query, params);
-
-    const formatPhoneForExcel = (phone) => {
-      if (!phone) return '';
-      const digits = phone.replace(/\D/g, '');
-      if (digits.length > 9) {
-        return '0' + digits.slice(-9);
-      }
-      return phone;
-    };
 
     const headers = selectedFields.map(f => f.charAt(0).toUpperCase() + f.slice(1));
     const data = result.rows.map(row => {
@@ -491,28 +384,7 @@ const exportArchivedJumuiyaOfficials = async (req, res) => {
       query += (termId ? ` AND` : ` AND`) + ` (o.term_of_service = $${params.length + 1} OR et.name = $${params.length + 1})`;
       params.push(termOfService);
     }
-    query += ` ORDER BY 
-        CASE 
-          WHEN o.category = 'St. Antony' THEN 1
-          WHEN o.category = 'St. Augustine' THEN 2
-          WHEN o.category = 'St. Catherine' THEN 3
-          WHEN o.category = 'St. Dominic' THEN 4
-          WHEN o.category = 'St. Elizabeth' THEN 5
-          WHEN o.category = 'Maria Gorreti' THEN 6
-          WHEN o.category = 'St. Monica' THEN 7
-          ELSE 8
-        END,
-        CASE
-          WHEN o.position = 'Chairperson' THEN 1
-          WHEN o.position = 'Ass Chairperson' THEN 2
-          WHEN o.position = 'Organizing Secretary' THEN 3
-          WHEN o.position = 'Treasurer' THEN 4
-          WHEN o.position = 'Secretary' THEN 5
-          WHEN o.position = 'Ass Secretary' THEN 6
-          WHEN o.position = 'Liturgist' THEN 7
-          WHEN o.position = 'Ass Liturgist' THEN 8
-          ELSE 9
-        END`;
+    query += ` ${JUMUIYA_SORT_SQL}`;
 
     const result = await pool.query(query, params);
 
@@ -694,28 +566,7 @@ const getJumuiyaOfficialsByTerm = async (req, res) => {
     const dataQuery = `
       SELECT o.*, et.name as term_name, et.year as term_year 
       ${queryBase} 
-      ORDER BY ${termId || req.query.only_archived === 'true' ? 'et.year DESC, ' : ''}
-        CASE 
-          WHEN o.category = 'St. Antony' THEN 1
-          WHEN o.category = 'St. Augustine' THEN 2
-          WHEN o.category = 'St. Catherine' THEN 3
-          WHEN o.category = 'St. Dominic' THEN 4
-          WHEN o.category = 'St. Elizabeth' THEN 5
-          WHEN o.category = 'Maria Gorreti' THEN 6
-          WHEN o.category = 'St. Monica' THEN 7
-          ELSE 8
-        END,
-        CASE
-          WHEN o.position = 'Chairperson' THEN 1
-          WHEN o.position = 'Ass Chairperson' THEN 2
-          WHEN o.position = 'Organizing Secretary' THEN 3
-          WHEN o.position = 'Treasurer' THEN 4
-          WHEN o.position = 'Secretary' THEN 5
-          WHEN o.position = 'Ass Secretary' THEN 6
-          WHEN o.position = 'Liturgist' THEN 7
-          WHEN o.position = 'Ass Liturgist' THEN 8
-          ELSE 9
-        END
+      ${termId || req.query.only_archived === 'true' ? `ORDER BY et.year DESC ${JUMUIYA_SORT_SQL.replace('ORDER BY', ',')}` : JUMUIYA_SORT_SQL}
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     
     const result = await pool.query(dataQuery, [...params, limit, offset]);

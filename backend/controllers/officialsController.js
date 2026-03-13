@@ -1,9 +1,13 @@
-const pool = require('../config/db');
-const fs = require('fs');
-const path = require('path');
-const XLSX = require('xlsx');
 const { officialSchema, termSchema } = require('../schemas/zodSchemas');
 const { z } = require('zod');
+const { 
+  normalizePhone, 
+  isValidPhone, 
+  deleteFile, 
+  formatPhotoUrl, 
+  syncCurrentTerm,
+  formatPhoneForExcel 
+} = require('../utils/helpers');
 
 const CATEGORY_LIMITS = {
   'Executive': 6,
@@ -21,57 +25,9 @@ const CATEGORY_LIMITS = {
 
 const VALID_CATEGORIES = Object.keys(CATEGORY_LIMITS);
 
-const { parsePhoneNumberFromString } = require('libphonenumber-js');
-
-const normalizePhone = (phone) => {
-  if (!phone) return null;
-  const s = String(phone).trim();
-  let pn = parsePhoneNumberFromString(s);
-  if (!pn) pn = parsePhoneNumberFromString(s, 'KE');
-  if (!pn || !pn.isValid()) return null;
-  return pn.number;
-};
-
-const isValidPhone = (phone) => {
-  if (!phone) return true;
-  const pn = parsePhoneNumberFromString(String(phone));
-  if (pn) return pn.isValid();
-  const pn2 = parsePhoneNumberFromString(String(phone), 'KE');
-  return pn2 ? pn2.isValid() : false;
-};
-
-const deleteFile = (filePath) => {
-  if (filePath && fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-};
-
-const formatPhotoUrl = (filePath) => {
-  if (filePath) {
-    return filePath.replace(/\\/g, '/').replace('./', '/');
-  }
-  return null;
-};
-
-const syncCurrentTerm = async (termOfService) => {
-  if (!termOfService) return;
-  try {
-    const current = await pool.query('SELECT * FROM election_terms WHERE is_current = TRUE');
-    if (current.rows.length > 0) {
-      const term = current.rows[0];
-      if (term.year !== termOfService) {
-        await pool.query(
-          'UPDATE election_terms SET year = $1, name = $2 WHERE id = $3',
-          [termOfService, `${termOfService} Committee`, term.id]
-        );
-      }
-    }
-  } catch (err) {
-    console.error('Error syncing current term:', err);
-  }
-};
-
-// ==================== ELECTION TERM MANAGEMENT ====================
+// =============================================================================
+// ELECTION TERM MANAGEMENT
+// =============================================================================
 
 const getAllElectionTerms = async (req, res) => {
   try {
@@ -296,6 +252,10 @@ const archiveCurrentOfficials = async (req, res) => {
   }
 };
 
+/**
+ * Fetches officials filtered by term, status, or term of service.
+ * Supports pagination for history views.
+ */
 const getOfficialsByTerm = async (req, res) => {
   try {
     const { termId } = req.params;
@@ -444,7 +404,9 @@ const restoreArchivedOfficials = async (req, res) => {
   }
 };
 
-// ==================== EXISTING OFFICIALS FUNCTIONS ====================
+// =============================================================================
+// OFFICIALS MANAGEMENT (CSA)
+// =============================================================================
 
 const getAllOfficials = async (req, res) => {
   try {
